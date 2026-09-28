@@ -1,6 +1,6 @@
 import type { Category, WordEntry, WordSource } from "../data/types";
 import { WORD_LIBRARY, TLDS } from "../data/word-pools";
-import { creativeWordVariants, fusePair, type FusionVariant } from "./fusion";
+import { generateModelCandidates, blendModelCandidates, modelMeta, type CandidateFamily, type ModelId } from "./models";
 import { passesNameQuality } from "./quality";
 import { scoreName } from "./scoring";
 
@@ -10,6 +10,9 @@ export type Blend = {
   a: string;
   b: string;
   method: string;
+  modelId: ModelId;
+  modelName: string;
+  family: CandidateFamily;
   tld: string;
   score: number;
   categories: Category[];
@@ -18,6 +21,7 @@ export type Blend = {
 };
 
 export type GenOptions = {
+  modelId: ModelId;
   categories: Category[];
   sources: WordSource[];
   minLen: number;
@@ -25,6 +29,8 @@ export type GenOptions = {
   count: number;
   seedA?: string;
   seedB?: string;
+  prefix?: string;
+  suffix?: string;
   tlds: string[];
 };
 
@@ -40,6 +46,7 @@ const pickWeighted = <T extends { weight: number }>(items: T[]) => {
 };
 
 const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
+const normalize = (value: string) => value.toLowerCase().replace(/[^a-z]/g, "");
 
 function library(opts: GenOptions) {
   const sources = new Set(opts.sources);
@@ -52,7 +59,7 @@ function library(opts: GenOptions) {
 }
 
 function customEntry(word: string, selected: WordEntry[]): WordEntry {
-  const normalized = word.toLowerCase().replace(/[^a-z]/g, "");
+  const normalized = normalize(word);
   return (
     selected.find(entry => entry.word === normalized) || {
       word: normalized,
@@ -61,21 +68,6 @@ function customEntry(word: string, selected: WordEntry[]): WordEntry {
       weight: 0.75
     }
   );
-}
-
-function pairVariants(a: WordEntry, b: WordEntry): FusionVariant[] {
-  const forward = fusePair(a.word, b.word);
-  const reverse = fusePair(b.word, a.word).map(v => ({
-    ...v,
-    method: "reverse-" + v.method
-  }));
-  const direct: FusionVariant[] = [...creativeWordVariants(a), ...creativeWordVariants(b)];
-  const seen = new Set<string>();
-  return [...forward, ...reverse, ...direct].filter(variant => {
-    if (seen.has(variant.name)) return false;
-    seen.add(variant.name);
-    return true;
-  });
 }
 
 function familyKey(name: string): string {
@@ -97,7 +89,6 @@ function diversify(candidates: Blend[], count: number): Blend[] {
 
   for (const candidate of ordered) {
     if (chosen.length >= count) break;
-
     const family = familyKey(candidate.name);
     const pair = candidate.a + "|" + candidate.b;
     const familyCount = familyCounts.get(family) || 0;
@@ -123,6 +114,32 @@ function diversify(candidates: Blend[], count: number): Blend[] {
   return chosen.slice(0, count);
 }
 
+function applyUserModifiers(
+  candidates: Array<{ name: string; method: string; modelId: ModelId; family: CandidateFamily }>,
+  prefix: string,
+  suffix: string
+) {
+  const p = normalize(prefix);
+  const s = normalize(suffix);
+  if (!p && !s) return candidates;
+
+  const output = [...candidates];
+  const seen = new Set(candidates.map(item => item.name));
+
+  for (const candidate of candidates.slice(0, Math.min(40, candidates.length))) {
+    const name = p + candidate.name + s;
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    output.push({
+      ...candidate,
+      name,
+      method: "user-modified(" + candidate.method + ")"
+    });
+  }
+
+  return output;
+}
+
 export function generate(opts: GenOptions): Blend[] {
   const count = Math.max(6, Math.min(120, opts.count));
   const minLen = Math.min(opts.minLen, opts.maxLen);
@@ -135,30 +152,65 @@ export function generate(opts: GenOptions): Blend[] {
 
   const pool: Blend[] = [];
   const seen = new Set<string>();
-  const targetPool = Math.max(360, count * 6);
-  const maxAttempts = Math.max(9000, count * 180);
+  const targetPool = Math.max(300, count * 5);
+  const maxAttempts = Math.max(7000, count * 160);
+  const modelIds: ModelId[] = opts.modelId === "m0" ? ["m1", "m2", "m3", "m4", "m5"] : [opts.modelId];
 
   for (let attempt = 0; attempt < maxAttempts && pool.length < targetPool; attempt += 1) {
     const a = aLock || pickWeighted(lib);
     const b = bLock || pickWeighted(lib);
+
     if (!a || !b || a.word === b.word) continue;
 
-    for (const variant of pairVariants(a, b)) {
-      const name = variant.name.toLowerCase();
-      if (name.length < minLen || name.length > maxLen) continue;
-      if (!passesNameQuality(name) || seen.has(name)) continue;
+    const candidates = modelIds.flatMap(modelId => {
+      const variants =
+        modelId === "m0"
+          ? []
+          : generateModelCandidates(modelId, a, b, opts.prefix || "", opts.suffix || "");
+
+      return variants.map(variant => ({
+        ...variant,
+        modelId,
+        family: modelMeta(modelId).family
+      }));
+    });
+
+    const blendedCandidates =
+      opts.modelId === "m0" ? blendModelCandidates(a, b, opts.prefix || "", opts.suffix || "") : candidates;
+
+    const finalCandidates = applyUserModifiers(
+      blendedCandidates,
+      opts.prefix || "",
+      opts.suffix || ""
+    );
+
+    for (const variant of finalCandidates) {
+      const name = normalize(variant.name);
+      if (name.length < minLen || name.length > maxLen || seen.has(name)) continue;
+
+      const modelRelaxed =
+        variant.modelId === "m3" &&
+        (variant.method.startsWith("user-prefix") || variant.method.startsWith("initial"));
+
+      const passes = modelRelaxed ? name.length >= minLen && name.length <= maxLen : passesNameQuality(name);
+      if (!passes) continue;
 
       const scored = scoreName(name, a, b, variant.method);
-      if (scored.total < 63) continue;
+      const floor = variant.modelId === "m3" ? 54 : variant.modelId === "m5" ? 50 : 61;
+      if (scored.total < floor) continue;
 
       const tld = (opts.tlds.length ? pick(opts.tlds) : pick(TLDS)) || ".com";
+      const model = modelMeta(variant.modelId);
       seen.add(name);
       pool.push({
-        id: name + "-" + variant.method + "-" + attempt,
+        id: name + "-" + variant.modelId + "-" + variant.method + "-" + attempt,
         name,
         a: a.word,
         b: b.word,
         method: variant.method,
+        modelId: variant.modelId,
+        modelName: model.short,
+        family: variant.family,
         tld,
         score: scored.total,
         categories: [...new Set([...a.categories, ...b.categories])],
