@@ -127,7 +127,9 @@ function applyUserModifiers(
   const seen = new Set(candidates.map(item => item.name));
 
   for (const candidate of candidates.slice(0, Math.min(40, candidates.length))) {
-    const name = p + candidate.name + s;
+    const alreadyPrefixed = !p || candidate.name.startsWith(p);
+    const alreadySuffixed = !s || candidate.name.endsWith(s);
+    const name = (alreadyPrefixed ? "" : p) + candidate.name + (alreadySuffixed ? "" : s);
     if (!name || seen.has(name)) continue;
     seen.add(name);
     output.push({
