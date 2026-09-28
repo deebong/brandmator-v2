@@ -1,5 +1,4 @@
 const VOWELS = "aeiouy";
-const CONSONANTS = "bcdfghjklmnpqrstvwxz";
 
 const COMMON_VOWEL_PAIRS = new Set([
   "ai", "au", "ay", "ea", "ee", "ei", "ie", "oi", "oo", "ou", "oy", "ua", "ue", "ui", "ia", "io", "eo"
