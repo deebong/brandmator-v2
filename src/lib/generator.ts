@@ -39,6 +39,7 @@ export type GenOptions = {
   count: number;
   seedA?: string;
   seedB?: string;
+  seedWords?: string[];
   prefix?: string;
   suffix?: string;
   brief?: string;
@@ -96,6 +97,16 @@ function customEntry(word: string, selected: WordEntry[]): WordEntry {
       weight: 0.9
     }
   );
+}
+
+function matchesConstraints(name: string, prefix: string, suffix: string) {
+  const value = normalize(name);
+  const start = normalize(prefix);
+  const end = normalize(suffix);
+
+  if (start && !value.startsWith(start)) return false;
+  if (end && !value.endsWith(end)) return false;
+  return true;
 }
 
 function familyKey(name: string) {
@@ -232,14 +243,34 @@ export function generate(opts: GenOptions): Blend[] {
   const lib = library(opts, matches, briefAnalysis.categories);
   const briefTerms = briefAnalysis.matches.map(match => match.word);
 
-  const aLock = opts.seedA?.trim() ? customEntry(opts.seedA, lib) : null;
-  const bLock = opts.seedB?.trim() ? customEntry(opts.seedB, lib) : null;
+  const exactWords = (opts.seedWords || [])
+    .map(word => normalize(word))
+    .filter(Boolean)
+    .slice(0, 8);
+  const customPool = exactWords.map(word => customEntry(word, lib));
 
-  if (!lib.length && !aLock && !bLock) return [];
+  const aLock = opts.seedA?.trim()
+    ? customEntry(opts.seedA, lib)
+    : customPool.length === 1
+      ? customPool[0]
+      : null;
+  const bLock = opts.seedB?.trim()
+    ? customEntry(opts.seedB, lib)
+    : customPool.length === 2
+      ? customPool[1]
+      : null;
+
+  const selectionPool = customPool.length > 1 ? customPool : lib;
+
+  if (!lib.length && !customPool.length && !aLock && !bLock) return [];
 
   if (opts.candidateMode === "dictionary-one") {
     const entries = [...lib]
-      .filter(entry => entry.word.length >= minLen && entry.word.length <= maxLen)
+      .filter(entry =>
+        entry.word.length >= minLen &&
+        entry.word.length <= maxLen &&
+        matchesConstraints(entry.word, opts.prefix || "", opts.suffix || "")
+      )
       .sort((a, b) => (matches.get(b.word) || 0) - (matches.get(a.word) || 0));
 
     if (aLock && aLock.word && !entries.some(entry => entry.word === aLock.word)) {
@@ -263,7 +294,11 @@ export function generate(opts: GenOptions): Blend[] {
 
   if (opts.candidateMode === "dictionary-two") {
     const candidates = dictionaryTwo(lib, Math.max(count * 5, 120), briefTerms)
-      .filter(candidate => candidate.name.length >= minLen && candidate.name.length <= maxLen)
+      .filter(candidate =>
+        candidate.name.length >= minLen &&
+        candidate.name.length <= maxLen &&
+        matchesConstraints(candidate.name, opts.prefix || "", opts.suffix || "")
+      )
       .sort((a, b) => b.score - a.score)
       .slice(0, Math.max(count * 5, 120));
 
@@ -288,8 +323,8 @@ export function generate(opts: GenOptions): Blend[] {
   const maxAttempts = opts.modelId === "m0" ? 2800 : 1900;
 
   for (let attempt = 0; attempt < maxAttempts && pool.length < targetPool; attempt += 1) {
-    const a = aLock || weightedPick(lib, matches);
-    const b = bLock || weightedPick(lib, matches);
+    const a = aLock || weightedPick(selectionPool, matches);
+    const b = bLock || weightedPick(selectionPool, matches);
 
     if (!a || !b || a.word === b.word) continue;
 
@@ -330,6 +365,7 @@ export function generate(opts: GenOptions): Blend[] {
         const name = normalize(candidate.name);
         if (!isSafeName(name)) continue;
         if (name.length < minLen || name.length > maxLen || seen.has(name)) continue;
+        if (!matchesConstraints(name, opts.prefix || "", opts.suffix || "")) continue;
 
         const score = model.score(
           { ...candidate, name },
