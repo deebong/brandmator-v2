@@ -66,7 +66,7 @@ function extractDomains(html) {
   const prepared = decode(html)
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<br\\s*\\/?\s*>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/tr>/gi, "\n")
     .replace(/<\/td>/gi, " ")
     .replace(/<[^>]+>/g, " ");
@@ -105,7 +105,7 @@ function splitRoot(root) {
   return camel
     .replace(/[^A-Za-z]+/g, " ")
     .trim()
-    .split(/\\s+/)
+    .split(/\s+/)
     .map(v => v.toLowerCase())
     .filter(Boolean);
 }
