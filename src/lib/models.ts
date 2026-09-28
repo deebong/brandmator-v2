@@ -152,10 +152,14 @@ function semanticCandidates(a: WordEntry, b: WordEntry, prefix: string, suffix: 
 
   addRootForms(a.word, "a+b");
   addRootForms(b.word, "b+a");
-  add(output, seen, prefix + a.word, "semantic-prefix", v => prefixGate(v, a.word));
-  add(output, seen, prefix + b.word, "semantic-prefix", v => prefixGate(v, b.word));
-  add(output, seen, a.word + suffix, "semantic-suffix", relaxedBrandGate);
-  add(output, seen, b.word + suffix, "semantic-suffix", relaxedBrandGate);
+  if (prefix.trim()) {
+    add(output, seen, prefix + a.word, "semantic-prefix", v => prefixGate(v, a.word));
+    add(output, seen, prefix + b.word, "semantic-prefix", v => prefixGate(v, b.word));
+  }
+  if (suffix.trim()) {
+    add(output, seen, a.word + suffix, "semantic-suffix", relaxedBrandGate);
+    add(output, seen, b.word + suffix, "semantic-suffix", relaxedBrandGate);
+  }
 
   for (const fusion of [...fusePair(a.word, b.word), ...fusePair(b.word, a.word)]) {
     if (fusion.name.length >= 6) {

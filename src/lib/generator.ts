@@ -189,6 +189,7 @@ export function generate(opts: GenOptions): Blend[] {
     for (const variant of finalCandidates) {
       const name = normalize(variant.name);
       if (name.length < minLen || name.length > maxLen || seen.has(name)) continue;
+      if (name === normalize(a.word) || name === normalize(b.word)) continue;
 
       const modelRelaxed =
         variant.modelId === "m3" &&
