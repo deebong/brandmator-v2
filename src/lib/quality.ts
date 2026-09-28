@@ -24,7 +24,6 @@ const BAD_PATTERNS = [
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z]/g, "");
 
 const isVowel = (c: string) => VOWELS.includes(c);
-const isConsonant = (c: string) => CONSONANTS.includes(c);
 
 function runs(word: string, vowel: boolean): string[] {
   const output: string[] = [];
