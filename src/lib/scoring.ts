@@ -28,7 +28,8 @@ function methodBonus(method: string): number {
   if (method.includes("vowel-bridge")) return 4;
   if (method.includes("compressed-ending") || method.includes("vowel-drop")) return 6;
   if (method.includes("suffix-ify") || method.includes("suffix-ly") || method.includes("suffix-io")) return 5;
-  if (method.includes("suffix-") || method.includes("prefix-") || method.includes("initial-")) return 3;
+  if (method.includes("user-prefix") || method.includes("initial")) return 9;
+  if (method.includes("suffix-") || method.includes("prefix-")) return 3;
   if (method.includes("head+word") || method.includes("word+tail")) return 2;
   return 0;
 }

@@ -87,6 +87,9 @@ export default function NameCard({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
+        <span className="rounded-full border border-indigo-300/40 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-200">
+          {blend.modelName}
+        </span>
         {sourceSignals.map(source => (
           <span
             key={source}
