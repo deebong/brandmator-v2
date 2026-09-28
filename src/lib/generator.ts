@@ -396,11 +396,17 @@ export function generate(opts: GenOptions): Blend[] {
       });
 
       const candidates = [...rawCandidates];
+      const baseNameByCandidate = new Map<string, string>();
+
+      for (const candidate of rawCandidates) {
+        baseNameByCandidate.set(candidate.name, candidate.name);
+      }
 
       if (hasExplicitAffix(opts.prefix || "", opts.suffix || "")) {
         for (const candidate of rawCandidates.slice(0, 80)) {
           const name = applyAffixes(candidate.name, opts.prefix || "", opts.suffix || "");
           if (!isSafeName(name) || seen.has(name)) continue;
+          baseNameByCandidate.set(name, candidate.name);
           candidates.push({
             ...candidate,
             name,
@@ -415,8 +421,10 @@ export function generate(opts: GenOptions): Blend[] {
         if (name.length < minLen || name.length > maxLen || seen.has(name)) continue;
         if (!matchesConstraints(name, opts.prefix || "", opts.suffix || "")) continue;
 
-        const isUserAffixed = candidate.method.startsWith("user-affix(");
-        if (!isUserAffixed && !model.accept({ ...candidate, name }, {
+        const baseName = baseNameByCandidate.get(name) || name;
+        const acceptanceCandidate = { ...candidate, name: baseName };
+
+        if (!model.accept(acceptanceCandidate, {
           a,
           b,
           prefix: opts.prefix || "",
@@ -424,21 +432,6 @@ export function generate(opts: GenOptions): Blend[] {
           briefTerms,
           style: opts.style
         })) continue;
-
-        if (isUserAffixed && !model.accept({
-          ...candidate,
-          name: normalize(candidate.name.replace(/^opts.prefix || ""$/,'''))
-        }, {
-          a,
-          b,
-          prefix: opts.prefix || "",
-          suffix: opts.suffix || "",
-          briefTerms,
-          style: opts.style
-        })) {
-          // User affixes wrap an otherwise valid model candidate; reject only if its base candidate is invalid.
-          continue;
-        }
 
         const score = model.score(
           { ...candidate, name },
