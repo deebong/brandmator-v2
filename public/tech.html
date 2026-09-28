@@ -49,7 +49,7 @@ footer{margin:50px 0;padding:22px 0;border-top:1px solid var(--line)}
   <p><span class="badge">React</span><span class="badge">TypeScript</span><span class="badge">Vite</span><span class="badge">Tailwind</span><span class="badge">GitHub Pages</span></p>
 </header>
 
-<h2 id="lite">Lite mode</h2><p>Lite mode is the default first-time experience. The user enters one or more keywords and presses Generate. Internally Brandmator uses Model 0 across all available model families, the full vocabulary layer and fixed 5-12 character constraints, returning 120 mixed candidates. No model, source, topic or TLD decisions are required.</p><h2 id="ux-flow">User flow</h2>
+<h2 id="lite">Lite mode</h2><p>Lite mode is the default first-time experience. The user enters one or more keywords and presses Generate. Internally Brandmator uses a broad Model 0 exploration path across the available model families, the full vocabulary layer and fixed 5-12 character constraints, returning 120 mixed candidates. Unlike an individual model, Lite does not require every candidate to pass that model's strict acceptance gate; model scoring and shared safety/shape checks still rank and control the exploration set.</p><h2 id="ux-flow">User flow</h2>
 <p>The public interface deliberately avoids exposing engine jargon. Full mode remains available for users who want deterministic controls. A new user follows one path:</p>
 <pre><code>1. Describe your brand
 2. Choose a naming recipe
@@ -156,7 +156,8 @@ focus terms + aliases
 <p>Current word sources are isolated into separate pools. The merged library retains source provenance, categories and weights. Sales vocabulary is a starter signal set derived from reported sales rather than a live sales feed.</p>
 <p>Planned ingestion can replace or append these static pools without changing model code.</p>
 
-<h2 id="scale">Large result generation</h2><p>Full mode supports up to 1,000 candidates. Large generation batches run asynchronously in browser-yielding chunks so progress can be displayed and the main interface remains responsive. The generator also uses expanded vocabulary pools and model-specific diversification to reduce duplicate-looking results.</p><h2 id="analytics">Analytics extension point</h2>
+<h2 id="scale">Large result generation</h2><p>Full mode supports up to 1,000 candidates. Large generation batches run asynchronously in browser-yielding chunks so progress can be displayed and the main interface remains responsive. The generator also uses expanded vocabulary pools and model-specific diversification to reduce duplicate-looking results.</p><h2 id="scraper">DNJournal refresh</h2><pre><code>scripts/update-dnjournal-sales.mjs
+.github/workflows/refresh-dnjournal.yml</code></pre><p>The workflow runs weekly and also runs when the scraper itself is updated. It writes <code>src/data/word-pools/dnjournal-live.ts</code> and commits only when the extracted vocabulary changes.</p><h2 id="analytics">Analytics extension point</h2>
 <pre><code>track("generate", payload)
 track("model_change", payload)
 track("candidate_mode_change", payload)
