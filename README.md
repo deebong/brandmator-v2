@@ -34,21 +34,33 @@ The documentation covers the feature set, naming models, scoring architecture, d
 
 Dictionary generation is provided separately for pure one-word and pure two-word candidates. Two-word dictionary candidates are displayed in CamelCase while the domain string remains lowercase.
 
+## User flow
+
+The public UI is task-first:
+
+1. Describe the brand
+2. Choose a naming recipe
+3. Choose an optional name feel
+4. Add optional words / starts-with / ends-with constraints
+5. Generate
+6. Open "Fine-tune" only when deeper vocabulary, length or domain controls are needed
+
+The internal model architecture remains available through the recipe layer and developer registry without requiring users to understand model numbers.
+
 ## User controls
 
-- Naming model
-- Generation mode
-- Naming style
-- Brand brief
-- Vibes / categories
-- Word intelligence sources
-- Seed words
-- Prefix / suffix
+- Naming recipes: Surprise me, Invented words, Creative spelling, Prefix & initials, Meaningful names, Wild ideas, Real word, Two real words
+- Name feel preferences
+- Brand brief with local concept matching and inferred topics
+- Words to include
+- Starts with / Ends with hard output constraints
+- Topic focus and vocabulary source presets
 - Name-length range
 - Result count
 - TLD selection and custom TLDs
-- Generated-name filter
-- Result sorting
+- Generated-batch search and result sorting
+- Shortlist
+- CSV and TXT export
 - Shortlist
 - CSV and TXT export
 - Light/dark theme
