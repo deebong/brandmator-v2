@@ -32,6 +32,7 @@ export type NamingModel = {
   description: string;
   family: Exclude<ModelFamily, "blend">;
   generate: (context: ModelContext) => ModelCandidate[];
+  accept: (candidate: ModelCandidate, context: ModelContext) => boolean;
   score: (candidate: ModelCandidate, context: ModelContext) => ModelScore;
 };
 
