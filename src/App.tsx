@@ -173,13 +173,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORE_KEY, JSON.stringify(saved));
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(saved));
+    } catch {}
   }, [saved]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", !light);
     document.documentElement.dataset.theme = light ? "light" : "dark";
-    localStorage.setItem(THEME_KEY, light ? "light" : "dark");
+    try {
+      localStorage.setItem(THEME_KEY, light ? "light" : "dark");
+    } catch {}
   }, [light]);
 
   useEffect(() => {
