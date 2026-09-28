@@ -11,7 +11,7 @@ export const MODEL_4: NamingModel = {
   family: "semantic",
 
   generate: ({ a, b, prefix, suffix }) => {
-    const output = [];
+    const output: import("./contract").ModelCandidate[] = [];
     const seen = new Set<string>();
 
     // Deliberately allow untouched dictionary words here. Availability is a later domain layer.
