@@ -45,6 +45,7 @@ export const MODEL_5: NamingModel = {
     return output;
   },
 
+  accept: candidate => isSafeName(candidate.name),
   score: (candidate, context) => {
     const { a, b } = context;
     const length = lengthFit(candidate.name);
