@@ -273,8 +273,15 @@ export function generate(opts: GenOptions): Blend[] {
       )
       .sort((a, b) => (matches.get(b.word) || 0) - (matches.get(a.word) || 0));
 
-    if (aLock && aLock.word && !entries.some(entry => entry.word === aLock.word)) {
-      entries.unshift(aLock);
+    for (const custom of customPool) {
+      if (
+        custom.word.length >= minLen &&
+        custom.word.length <= maxLen &&
+        matchesConstraints(custom.word, opts.prefix || "", opts.suffix || "") &&
+        !entries.some(entry => entry.word === custom.word)
+      ) {
+        entries.unshift(custom);
+      }
     }
 
     const candidates = dictionaryOne(entries, Math.min(count * 3, entries.length), briefTerms);
