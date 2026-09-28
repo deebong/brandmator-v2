@@ -44,6 +44,20 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Inspect Pages artifact
+        run: |
+          echo "=== dist ==="
+          find dist -maxdepth 2 -type f -print
+          echo "=== dist/index.html size ==="
+          wc -c dist/index.html
+          echo "=== dist/index.html head ==="
+          head -c 1200 dist/index.html
+          echo
+          echo "=== script references ==="
+          grep -o 'src="[^"]*"' dist/index.html || true
+          echo "=== stylesheet references ==="
+          grep -o 'href="[^"]*\.css[^"]*"' dist/index.html || true
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
