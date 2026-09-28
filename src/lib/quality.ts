@@ -2,7 +2,7 @@ const VOWELS = "aeiouy";
 const CONSONANTS = "bcdfghjklmnpqrstvwxz";
 
 const COMMON_VOWEL_PAIRS = new Set([
-  "ai", "au", "ay", "ea", "ee", "ei", "ie", "oa", "oi", "oo", "ou", "oy", "ua", "ue", "ui", "ia", "io", "eo"
+  "ai", "au", "ay", "ea", "ee", "ei", "ie", "oi", "oo", "ou", "oy", "ua", "ue", "ui", "ia", "io", "eo"
 ]);
 
 const COMMON_CONSONANT_CLUSTERS = new Set([
@@ -13,7 +13,7 @@ const COMMON_CONSONANT_CLUSTERS = new Set([
 ]);
 
 const COMMON_TRIPLES = new Set([
-  "str", "spr", "scr", "spl", "thr", "shr", "sch", "ckr", "ndr", "ntr"
+  "str", "spr", "scr", "spl", "thr", "shr", "sch", "ckr", "ndr", "ntr", "stl"
 ]);
 
 const BAD_PATTERNS = [
@@ -97,7 +97,9 @@ export function analyzeNameShape(value: string): NameShape {
   const vowelFlowPenaltyValue = vowelFlowPenalty(word);
 
   let patternScore = 8;
-  if (density >= 0.42 && density <= 0.78) patternScore += 9;
+  const perfectlyAlternating = density >= 0.90 && maxConsonantRun <= 1 && maxVowelRun <= 1;
+  if (perfectlyAlternating) patternScore += 9;
+  else if (density >= 0.42 && density <= 0.78) patternScore += 9;
   else if (density >= 0.32 && density <= 0.86) patternScore += 4;
   else patternScore -= 7;
 
@@ -154,12 +156,21 @@ export function passesNameQuality(value: string): boolean {
   if (/(.)\1\1/.test(word)) return false;
 
   const shape = analyzeNameShape(word);
-  if (shape.vowelRatio < 0.23 || shape.vowelRatio > 0.60) return false;
+  const compactMonosyllable =
+    shape.syllables === 1 &&
+    shape.vowelRatio >= 0.16 &&
+    shape.maxConsonantRun <= 3 &&
+    shape.clusterPenalty < 12;
+
+  if ((!compactMonosyllable && shape.vowelRatio < 0.23) || shape.vowelRatio > 0.60) return false;
   if (shape.syllables < 1 || shape.syllables > 4) return false;
   if (shape.maxConsonantRun > 3 || shape.maxVowelRun > 2) return false;
-  if (shape.transitionDensity < 0.28 || shape.transitionDensity > 0.88) return false;
+  if (shape.transitionDensity < 0.28 || shape.transitionDensity > 0.88) {
+    const alternating = shape.transitionDensity > 0.88 && shape.maxConsonantRun <= 1 && shape.maxVowelRun <= 1;
+    if (!alternating) return false;
+  }
   if (shape.clusterPenalty >= 15) return false;
-  if (shape.vowelFlowPenalty >= 10) return false;
+  if (shape.vowelFlowPenalty >= 5 && shape.syllables > 1) return false;
 
   const ending = word.slice(-1);
   if (ending === "q" || ending === "j" || ending === "v") return false;
