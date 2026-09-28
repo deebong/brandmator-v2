@@ -16,22 +16,22 @@ export type ScoreBreakdown = {
 };
 
 const srcBoost = (e: WordEntry) =>
-  Math.min(10, Math.round((e.sources.length - 1) * 2 + Math.min(e.weight, 5) * 0.65));
+  Math.min(12, Math.round((e.sources.length - 1) * 2 + Math.min(e.weight, 5) * 0.55));
 
 const catBoost = (a: WordEntry, b: WordEntry) =>
-  Math.min(7, a.categories.filter(category => b.categories.includes(category)).length * 2);
+  Math.min(6, a.categories.filter(category => b.categories.includes(category)).length * 2);
 
-function methodBonus(method: string): number {
-  if (method.includes("overlap")) return 8;
-  if (method.includes("head+tail") || method.includes("tail+head")) return 6;
-  if (method.includes("clip+clip")) return 5;
-  if (method.includes("vowel-bridge")) return 4;
-  if (method.includes("compressed-ending") || method.includes("vowel-drop")) return 6;
-  if (method.includes("suffix-ify") || method.includes("suffix-ly") || method.includes("suffix-io")) return 5;
-  if (method.includes("user-prefix") || method.includes("initial")) return 9;
-  if (method.includes("suffix-") || method.includes("prefix-")) return 3;
-  if (method.includes("head+word") || method.includes("word+tail")) return 2;
-  return 0;
+function methodBonus(fusionMethod: string): number {
+  if (fusionMethod.includes("overlap")) return 7;
+  if (fusionMethod.includes("head+tail") || fusionMethod.includes("tail+head")) return 6;
+  if (fusionMethod.includes("clip+clip")) return 5;
+  if (fusionMethod.includes("vowel-bridge")) return 4;
+  if (fusionMethod.includes("compressed-ending") || fusionMethod.includes("vowel-drop")) return 5;
+  if (fusionMethod.includes("suffix-ify") || fusionMethod.includes("suffix-ly") || fusionMethod.includes("suffix-io")) return 5;
+  if (fusionMethod.includes("user-prefix") || fusionMethod.includes("initial")) return 7;
+  if (fusionMethod.includes("suffix-") || fusionMethod.includes("prefix-")) return 3;
+  if (fusionMethod.includes("head+word") || fusionMethod.includes("word+tail")) return 2;
+  return 1;
 }
 
 export function scoreName(
@@ -43,33 +43,37 @@ export function scoreName(
   const w = name.toLowerCase().replace(/[^a-z]/g, "");
   const shape = analyzeNameShape(w);
 
-  const length =
-    w.length >= 5 && w.length <= 9 ? 18 :
-    w.length === 4 || w.length === 10 ? 8 :
-    w.length === 11 || w.length === 12 ? 2 : -8;
+  const length = (() => {
+    if (w.length >= 6 && w.length <= 9) return 16;
+    if (w.length === 5 || w.length === 10) return 12;
+    if (w.length === 4 || w.length === 11) return 8;
+    if (w.length === 12) return 4;
+    return 0;
+  })();
 
   const vowels =
-    shape.vowelRatio >= 0.30 && shape.vowelRatio <= 0.52 ? 12 :
-    shape.vowelRatio >= 0.25 && shape.vowelRatio <= 0.58 ? 5 : -10;
+    shape.vowelRatio >= 0.31 && shape.vowelRatio <= 0.52 ? 10 :
+    shape.vowelRatio >= 0.25 && shape.vowelRatio <= 0.58 ? 7 :
+    shape.vowelRatio >= 0.20 && shape.vowelRatio <= 0.62 ? 3 : 0;
 
-  let phonetics = shape.phoneticScore;
-  if (w.length >= 5 && w.length <= 9) phonetics += 2;
-  if (shape.syllables >= 2 && shape.syllables <= 3) phonetics += 2;
-  phonetics = Math.max(-12, Math.min(18, phonetics));
+  const phonetics = Math.max(-2, Math.min(16,
+    shape.phoneticScore +
+    (shape.syllables >= 2 && shape.syllables <= 3 ? 3 : shape.syllables === 1 ? 1 : 0)
+  ));
 
-  const pattern = Math.max(-8, Math.min(20, shape.patternScore));
-  const sourceSignals = Math.min(14, srcBoost(a) + srcBoost(b));
+  const pattern = Math.max(0, Math.min(14, shape.patternScore));
+  const sourceSignals = Math.min(12, srcBoost(a) + srcBoost(b));
   const categoryFit = catBoost(a, b);
   const method = methodBonus(fusionMethod);
-  const riskPenalty = BAD.some(fragment => w.includes(fragment)) ? -40 : passesNameQuality(w) ? 0 : -30;
 
-  const total = Math.max(
-    1,
-    Math.min(
-      99,
-      Math.round(32 + length + vowels + phonetics + pattern + sourceSignals + categoryFit + method + riskPenalty)
-    )
-  );
+  // Only apply a catastrophic penalty for explicit risk terms or a failed quality gate.
+  const riskPenalty =
+    BAD.some(fragment => w.includes(fragment)) ? -45 :
+    passesNameQuality(w) ? 0 : -24;
+
+  // Deliberately budgeted to avoid the previous "everything becomes 99" ceiling.
+  const raw = 4 + length + vowels + phonetics + pattern + sourceSignals + categoryFit + method + riskPenalty;
+  const total = Math.max(1, Math.min(99, Math.round(raw)));
 
   return {
     length,
