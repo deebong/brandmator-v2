@@ -26,6 +26,7 @@ export const MODEL_1: NamingModel = {
     return output;
   },
 
+  accept: candidate => passesNameQuality(candidate.name),
   score: (candidate, { a, b, briefTerms }) => {
     const shape = scoringText(candidate.name);
     const method = candidate.method.includes("overlap")
