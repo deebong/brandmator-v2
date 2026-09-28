@@ -49,7 +49,19 @@ footer{margin:50px 0;padding:22px 0;border-top:1px solid var(--line)}
   <p><span class="badge">React</span><span class="badge">TypeScript</span><span class="badge">Vite</span><span class="badge">Tailwind</span><span class="badge">GitHub Pages</span></p>
 </header>
 
-<h2 id="features">Feature inventory</h2>
+<h2 id="ux-flow">User flow</h2>
+<p>The public interface deliberately avoids exposing engine jargon. A new user follows one path:</p>
+<pre><code>1. Describe your brand
+2. Choose a naming recipe
+3. Choose an optional name feel
+4. Shape the result: words, starts with, ends with
+5. Generate
+6. Refine vocabulary/domain settings only when needed</code></pre>
+<p>Internally, the recipe maps to one or more registered naming models. “Surprise me” is the public label for the Model 0 portfolio behavior. The model numbers remain useful for developers and documentation but are not required knowledge for normal use.</p>
+<h3>Prefix and suffix behavior</h3>
+<p><code>Starts with</code> and <code>Ends with</code> are hard output constraints. When a user enters <code>f</code>, every generated result must begin with <code>f</code>. When a user enters <code>ly</code>, every result must end with <code>ly</code>. They are not post-generation modifiers that require a second results search.</p>
+<h3>Real-word modes</h3>
+<p>Pure dictionary generation is exposed as a simple recipe. One-word mode returns untouched dictionary terms. Two-word mode joins untouched words without fusion and presents the brand in CamelCase while keeping the actual domain lowercase.</p><h2 id="features">Feature inventory</h2>
 <div class="grid cards">
   <div class="card"><strong>Model 0 - Blend All</strong><p>Portfolio/orchestrator mode combining the strongest results from the registered naming models.</p></div>
   <div class="card"><strong>Models 1-5</strong><p>Fusion, brand spelling, prefix/initial, semantic wordform and experimental strategies with independent scoring.</p></div>
@@ -114,7 +126,7 @@ footer{margin:50px 0;padding:22px 0;border-top:1px solid var(--line)}
 </table>
 
 <h2 id="brief">Brand brief</h2>
-<p>The current brief layer is intentionally deterministic and browser-local. It tokenizes the description, ignores common filler and generic business terms, uses a small alias set, infers categories, finds related library vocabulary and increases weighted selection for relevant terms.</p>
+<p>The current brief layer is intentionally deterministic and browser-local. It tokenizes the description, recognizes short technology terms such as AI/ML/EV, ignores common filler and generic business terms, uses aliases and light stemming, infers categories, finds related library vocabulary and increases weighted selection for relevant terms.</p>
 <pre><code>brand description
       |
       v
