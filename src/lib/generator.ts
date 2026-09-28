@@ -124,6 +124,28 @@ function hasExplicitAffix(prefix: string, suffix: string) {
   return Boolean(normalize(prefix) || normalize(suffix));
 }
 
+function userAnchorEntries(customPool: WordEntry[], lib: WordEntry[]) {
+  if (!customPool.length) return [];
+  const seen = new Set<string>();
+  const entries: WordEntry[] = [];
+
+  for (const entry of customPool) {
+    if (!entry.word || seen.has(entry.word)) continue;
+    seen.add(entry.word);
+    entries.push(entry);
+  }
+
+  // Keep a useful pool of non-user words for pairing.
+  for (const entry of lib) {
+    if (entries.length >= 120) break;
+    if (seen.has(entry.word)) continue;
+    seen.add(entry.word);
+    entries.push(entry);
+  }
+
+  return entries;
+}
+
 function familyKey(name: string) {
   const value = name.toLowerCase();
   const suffixes = ["ify", "ora", "ly", "io", "eo", "ia", "ix", "um", "ra", "z", "x", "r", "y"];
@@ -285,7 +307,9 @@ export function generate(opts: GenOptions): Blend[] {
       ? customPool[1]
       : null;
 
-  const selectionPool = customPool.length > 1 ? customPool : lib;
+  // User-entered words are anchors, not merely weighted suggestions.
+  // The library remains available so anchored words can be paired with fresh vocabulary.
+  const selectionPool = lib.length ? lib : customPool;
 
   if (!lib.length && !customPool.length && !aLock && !bLock) return [];
 
@@ -340,7 +364,11 @@ export function generate(opts: GenOptions): Blend[] {
   }
 
   if (opts.candidateMode === "dictionary-two") {
-    const candidates = dictionaryTwo(lib, Math.max(count * 10, 240), briefTerms)
+    const dictionaryEntries = userAnchorEntries(customPool, lib);
+    const candidates = dictionaryTwo(dictionaryEntries, Math.max(count * 12, 300))
+      .filter(candidate => customPool.length === 0 || customPool.some(anchor =>
+        candidate.a.word === anchor.word || candidate.b?.word === anchor.word
+      ))
       .map(candidate => ({
         ...candidate,
         name: applyAffixes(candidate.name, opts.prefix || "", opts.suffix || ""),
@@ -377,10 +405,20 @@ export function generate(opts: GenOptions): Blend[] {
   const seen = new Set<string>();
   const targetPool = Math.max(360, count * 6);
   const maxAttempts = opts.modelId === "m0" ? 2800 : 1900;
+  const anchors = customPool.length ? customPool : [];
+  const partnerPool = selectionPool.length ? selectionPool : customPool;
 
   for (let attempt = 0; attempt < maxAttempts && pool.length < targetPool; attempt += 1) {
-    const a = aLock || weightedPick(selectionPool, matches);
-    const b = bLock || weightedPick(selectionPool, matches);
+    const anchor = anchors.length
+      ? anchors[attempt % anchors.length]
+      : null;
+
+    const a = aLock || anchor || weightedPick(partnerPool, matches);
+    const b = bLock || (
+      anchor
+        ? weightedPick(partnerPool.filter(entry => entry.word !== anchor.word), matches)
+        : weightedPick(partnerPool, matches)
+    );
 
     if (!a || !b || a.word === b.word) continue;
 
@@ -418,6 +456,7 @@ export function generate(opts: GenOptions): Blend[] {
       for (const candidate of candidates) {
         const name = normalize(candidate.name);
         if (!isSafeName(name)) continue;
+        if (anchors.length && !anchors.some(anchor => anchor.word === a.word || anchor.word === b.word)) continue;
         if (name.length < minLen || name.length > maxLen || seen.has(name)) continue;
         if (!matchesConstraints(name, opts.prefix || "", opts.suffix || "")) continue;
 
