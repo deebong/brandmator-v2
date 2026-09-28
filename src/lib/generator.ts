@@ -3,7 +3,7 @@ import { WORD_LIBRARY, TLDS } from "../data/word-pools";
 import { analyzeBrief } from "./brief";
 import { adjustScore, type NamingStyleId } from "./style";
 import { getModel, MODEL_REGISTRY } from "../models/registry";
-import type { CandidateFamily, ModelId, ModelScore, ModelCandidate } from "../models/contract";
+import type { ModelFamily, ModelId, ModelScore, ModelCandidate, GeneratedEvidence } from "../models/contract";
 import { dictionaryOne, dictionaryTwo } from "../models/dictionary";
 import { creativeWordVariants } from "./fusion";
 import { isSafeName, normalize } from "../models/common";
@@ -20,7 +20,7 @@ export type Blend = {
   method: string;
   modelId: ModelId;
   modelName: string;
-  family: CandidateFamily;
+  family: Exclude<ModelFamily, "blend">;
   tld: string;
   score: number;
   scoreDimensions: Record<string, number>;
@@ -218,8 +218,17 @@ function camelCaseTwoWords(a: string, b: string) {
   return cap(a) + cap(b);
 }
 
+type DictionaryWorkCandidate = {
+  name: string;
+  a: WordEntry;
+  b?: WordEntry;
+  method: string;
+  score: number;
+  evidence: GeneratedEvidence;
+};
+
 function dictionaryBlend(
-  candidate: ReturnType<typeof dictionaryOne>[number] | ReturnType<typeof dictionaryTwo>[number],
+  candidate: DictionaryWorkCandidate,
   tld: string,
   mode: CandidateMode,
   style: NamingStyleId,
@@ -478,22 +487,24 @@ export async function generateAsync(
       dictionaryOne(entries, entries.length, briefTerms).map(candidate => [candidate.a.word, candidate])
     );
 
-    const variants: Array<ReturnType<typeof dictionaryOne>[number]> = [];
+    const variants: DictionaryWorkCandidate[] = [];
     const seen = new Set<string>();
 
     for (const entry of entries) {
-      const candidates = [
+      const baseEvidence: GeneratedEvidence = baseScores.get(entry.word)?.evidence || {
+        modelScore: 72,
+        dimensions: {},
+        rationale: ["Dictionary source"],
+        sourceWords: [entry.word, entry.word],
+        categories: entry.categories
+      };
+
+      const candidates: DictionaryWorkCandidate[] = [
         {
           name: entry.word,
           method: "dictionary-word",
           score: baseScores.get(entry.word)?.score || 72,
-          evidence: baseScores.get(entry.word)?.evidence || {
-            modelScore: 72,
-            dimensions: {},
-            rationale: ["Dictionary source"],
-            sourceWords: [entry.word, entry.word],
-            categories: entry.categories
-          },
+          evidence: baseEvidence,
           a: entry,
           b: entry
         },
@@ -501,13 +512,7 @@ export async function generateAsync(
           name: variant.name,
           method: variant.method,
           score: baseScores.get(entry.word)?.score || 72,
-          evidence: baseScores.get(entry.word)?.evidence || {
-            modelScore: 72,
-            dimensions: {},
-            rationale: ["Dictionary source"],
-            sourceWords: [entry.word, entry.word],
-            categories: entry.categories
-          },
+          evidence: baseEvidence,
           a: entry,
           b: entry
         }))
