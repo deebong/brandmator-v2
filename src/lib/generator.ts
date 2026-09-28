@@ -46,6 +46,8 @@ export type GenOptions = {
   suffix?: string;
   brief?: string;
   tlds: string[];
+  lite?: boolean;
+  excludeNames?: string[];
 };
 
 const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
@@ -99,6 +101,14 @@ function applyAffixVariants(name: string, prefixes: string[], suffixes: string[]
 
 function hasExplicitAffix(prefixes: string[], suffixes: string[]) {
   return prefixes.length > 0 || suffixes.length > 0;
+}
+
+function passesLiteQuality(value: string) {
+  const word = normalize(value);
+  if (!/^[a-z]+$/.test(word) || word.length < 5 || word.length > 12) return false;
+  if (/(.)\1\1/.test(word)) return false;
+  if (/(fuck|shit|porn|rape|nazi|suicide|terror)/.test(word)) return false;
+  return true;
 }
 
 function weightedPick(items: WordEntry[], matches: Map<string, number>) {
@@ -304,6 +314,151 @@ export async function generateAsync(
   if (!selectionPool.length) return [];
 
   const tldPool = opts.tlds.length ? opts.tlds : TLDS;
+  const excluded = new Set((opts.excludeNames || []).map(normalize));
+
+  if (opts.lite) {
+    const allModels = MODEL_REGISTRY;
+    const litePool: Blend[] = [];
+    const liteSeen = new Set(excluded);
+    const anchorWords = customPool.length
+      ? customPool
+      : [...selectionPool].sort(() => Math.random() - 0.5).slice(0, Math.min(24, selectionPool.length));
+    const partnerPool = selectionPool;
+
+    const addLite = (
+      candidate: ModelCandidate,
+      modelId: Exclude<ModelId, "m0">,
+      a: WordEntry,
+      b: WordEntry
+    ) => {
+      const name = normalize(candidate.name);
+      if (!passesLiteQuality(name) || name.length < 5 || name.length > 12) return;
+      if (liteSeen.has(name)) return;
+
+      const model = getModel(modelId);
+      const score = model.score(
+        { ...candidate, name },
+        { a, b, prefix: "", suffix: "", briefTerms, style: "balanced" }
+      );
+      const adjusted = adjustScore(score.total, name, candidate.method, "balanced");
+      if (adjusted < 34) return;
+
+      liteSeen.add(name);
+      litePool.push(buildBlend(
+        { ...candidate, name },
+        modelId,
+        a,
+        b,
+        pick(tldPool) || ".com",
+        { ...score, total: adjusted },
+        "balanced"
+      ));
+    };
+
+    // Preserve direct word-family exploration for a user keyword.
+    for (const anchor of anchorWords) {
+      const direct = creativeWordVariants(anchor);
+      const selfCandidate: ModelCandidate = {
+        name: anchor.word,
+        method: "keyword-root",
+        evidence: ["user keyword anchor"]
+      };
+      addLite(selfCandidate, "m2", anchor, anchor);
+
+      for (const variant of direct) {
+        addLite(
+          { name: variant.name, method: variant.method, evidence: ["keyword spelling variant"] },
+          "m2",
+          anchor,
+          anchor
+        );
+      }
+    }
+
+    const maxPartners = Math.min(120, partnerPool.length);
+    let attempts = 0;
+    const target = Math.max(count * 5, 600);
+
+    while (litePool.length < target && attempts < Math.max(500, anchorWords.length * 18)) {
+      const anchor = anchorWords[attempts % anchorWords.length];
+      const partner = partnerPool[(attempts * 37) % maxPartners];
+      attempts += 1;
+      if (!anchor || !partner || anchor.word === partner.word) continue;
+
+      for (const model of allModels) {
+        const rawCandidates = model.generate({
+          a: anchor,
+          b: partner,
+          prefix: "",
+          suffix: "",
+          briefTerms,
+          style: "balanced"
+        });
+
+        for (const candidate of rawCandidates) {
+          // Lite is a broad exploration layer. The model scorer still ranks candidates,
+          // but its strict model acceptance gate does not eliminate the candidate.
+          addLite(candidate, model.id, anchor, partner);
+          if (litePool.length >= target) break;
+        }
+        if (litePool.length >= target) break;
+      }
+
+      if (attempts % 24 === 0) {
+        const percent = Math.min(96, Math.round((attempts / Math.max(500, anchorWords.length * 18)) * 96));
+        onProgress?.({ phase: "generating", percent, found: Math.min(litePool.length, count) });
+        await yieldToBrowser();
+      }
+    }
+
+    // A permissive second pass guarantees Lite remains useful for a single keyword,
+    // without dropping unsafe or overlong strings.
+    if (litePool.length < count) {
+      const fallbackSeen = new Set(litePool.map(item => item.name));
+      for (const anchor of anchorWords) {
+        for (const partner of partnerPool.slice(0, maxPartners)) {
+          for (const fusion of [
+            ...creativeWordVariants(anchor).map(v => ({ name: v.name, method: "lite-" + v.method })),
+            ...creativeWordVariants(partner).map(v => ({ name: anchor.word + v.name, method: "lite-keyword+" + v.method })),
+            { name: anchor.word + partner.word, method: "lite-word+word" },
+            { name: partner.word + anchor.word, method: "lite-word+keyword" }
+          ]) {
+            const value = normalize(fusion.name);
+            if (!passesLiteQuality(value) || value.length < 5 || value.length > 12) continue;
+            if (fallbackSeen.has(value) || excluded.has(value)) continue;
+
+            fallbackSeen.add(value);
+            litePool.push({
+              id: value + "-lite",
+              name: value,
+              displayName: value,
+              a: anchor.word,
+              b: partner.word,
+              method: fusion.method,
+              modelId: "m0",
+              modelName: "Lite Mix",
+              family: "experimental",
+              tld: pick(tldPool) || ".com",
+              score: 55,
+              scoreDimensions: { liteExploration: 55 },
+              rationale: ["Broad Lite exploration", "Passed safety, length and duplication checks"],
+              categories: [...new Set([...anchor.categories, ...partner.categories])],
+              sourcesA: anchor.sources,
+              sourcesB: partner.sources
+            });
+            if (litePool.length >= count) break;
+          }
+          if (litePool.length >= count) break;
+        }
+        if (litePool.length >= count) break;
+      }
+    }
+
+    onProgress?.({ phase: "finishing", percent: 98, found: Math.min(litePool.length, count) });
+    const liteResult = diversify(litePool, count, customPool);
+    onProgress?.({ phase: "finishing", percent: 100, found: liteResult.length });
+    return liteResult;
+  }
 
   if (opts.candidateMode === "dictionary-one") {
     const entries = [...selectionPool]
@@ -376,6 +531,8 @@ export async function generateAsync(
     }
 
     const result = variants
+      .filter(candidate => !excluded.has(candidate.name))
+      .filter(candidate => matchesConstraints(candidate.name, prefixes, suffixes))
       .sort((a, b) => b.score - a.score)
       .slice(0, Math.min(count * 3, variants.length))
       .map(candidate => dictionaryBlend(
@@ -386,7 +543,9 @@ export async function generateAsync(
       ));
 
     onProgress?.({ phase: "finishing", percent: 100, found: result.length });
-    return result.slice(0, count);
+    return result
+      .filter(candidate => matchesConstraints(candidate.name, prefixes, suffixes))
+      .slice(0, count);
   }
 
   if (opts.candidateMode === "dictionary-two") {
