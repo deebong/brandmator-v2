@@ -12,7 +12,7 @@ export const MODEL_1: NamingModel = {
   family: "fusion",
 
   generate: ({ a, b, briefTerms }) => {
-    const output = [];
+    const output: import("./contract").ModelCandidate[] = [];
     const seen = new Set<string>();
     const variants = [...fusePair(a.word, b.word), ...fusePair(b.word, a.word).map(v => ({ ...v, method: "reverse-" + v.method }))];
 
