@@ -37,7 +37,7 @@ export function scoreName(
   name: string,
   a: WordEntry,
   b: WordEntry,
-  method: string
+  fusionMethod: string
 ): ScoreBreakdown {
   const w = name.toLowerCase().replace(/[^a-z]/g, "");
   const shape = analyzeNameShape(w);
@@ -59,7 +59,7 @@ export function scoreName(
   const pattern = Math.max(-8, Math.min(20, shape.patternScore));
   const sourceSignals = Math.min(14, srcBoost(a) + srcBoost(b));
   const categoryFit = catBoost(a, b);
-  const method = methodBonus(method);
+  const method = methodBonus(fusionMethod);
   const riskPenalty = BAD.some(fragment => w.includes(fragment)) ? -40 : passesNameQuality(w) ? 0 : -30;
 
   const total = Math.max(
