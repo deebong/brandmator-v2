@@ -14,7 +14,7 @@ import { RECIPES, type RecipeId, getRecipe } from "./lib/recipes";
 import { RESULT_SORTS, sortResults, type ResultSort } from "./lib/result-sort";
 import { analyzeBrief } from "./lib/brief";
 import type { Category, WordSource } from "./data/types";
-import { generate, type Blend, type CandidateMode } from "./lib/generator";
+import { generate, type Blend } from "./lib/generator";
 import NameCard from "./components/NameCard";
 import StyledSelect from "./components/StyledSelect";
 import RangeSlider from "./components/RangeSlider";
@@ -302,11 +302,6 @@ export default function App() {
     setTldInput("");
   };
 
-  const activeSources =
-    sourcePreset === "custom"
-      ? sources
-      : SOURCE_PRESETS.find(preset => preset.value === sourcePreset)?.sources || sources;
-
   const setRecipe = (next: RecipeId) => {
     setRecipeId(next);
     track("recipe_change", { recipe: next });
@@ -444,24 +439,55 @@ export default function App() {
                 </button>
               </div>
 
-              <RecipeCards recipes={primaryRecipes} value={recipeId} onChange={setRecipe} />
+              <RecipeCards
+                recipes={primaryRecipes}
+                value={recipeId === "dictionary-two" ? "dictionary-one" : recipeId}
+                onChange={setRecipe}
+              />
 
               {showMoreRecipes && (
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   {secondaryRecipes
-                    .filter(item => !["dictionary-two"].includes(item.id))
+                    .filter(item => item.id !== "dictionary-two")
                     .map(item => (
                       <RecipeCards key={item.id} recipes={[item]} value={recipeId} onChange={setRecipe} />
                     ))}
                 </div>
               )}
 
-              {recipeId === "dictionary-one" && (
-                <p className="mt-2 text-xs text-[var(--muted)]">Uses untouched library words. A word can still be useful on a different TLD even when its .com is already taken.</p>
-              )}
-
-              {showMoreRecipes && recipeId === "dictionary-two" && (
-                <p className="mt-2 text-xs text-[var(--muted)]">Two untouched words are joined for the domain and presented in CamelCase.</p>
+              {(recipeId === "dictionary-one" || recipeId === "dictionary-two") && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-medium text-[var(--muted)]">Real-word format:</span>
+                  <button
+                    type="button"
+                    onClick={() => setRecipe("dictionary-one")}
+                    className={
+                      "rounded-full border px-3 py-1.5 text-xs font-medium " +
+                      (recipeId === "dictionary-one"
+                        ? "border-indigo-300/60 bg-indigo-500/15 text-indigo-700 dark:text-indigo-200"
+                        : "border-[var(--border)] bg-[var(--chip)] text-[var(--text-soft)]")
+                    }
+                  >
+                    One word
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecipe("dictionary-two")}
+                    className={
+                      "rounded-full border px-3 py-1.5 text-xs font-medium " +
+                      (recipeId === "dictionary-two"
+                        ? "border-indigo-300/60 bg-indigo-500/15 text-indigo-700 dark:text-indigo-200"
+                        : "border-[var(--border)] bg-[var(--chip)] text-[var(--text-soft)]")
+                    }
+                  >
+                    Two words
+                  </button>
+                  <span className="text-[10px] text-[var(--muted)]">
+                    {recipeId === "dictionary-two"
+                      ? "Two untouched words; displayed in CamelCase."
+                      : "One untouched dictionary word."}
+                  </span>
+                </div>
               )}
             </div>
 
