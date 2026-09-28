@@ -194,6 +194,7 @@ export default function App() {
     setGenerationProgress({ phase: "preparing", percent: 2, found: 0 });
     setPage(1);
     setShowSaved(false);
+    setResults([]);
 
     const seedWords = seedWordsInput
       .split(/[,\\n]+/)
