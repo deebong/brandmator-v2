@@ -1,7 +1,7 @@
 import type { Category, WordEntry } from "../data/types";
 
 export type ModelId = "m0" | "m1" | "m2" | "m3" | "m4" | "m5";
-export type ModelFamily = "blend" | "fusion" | "spelling" | "prefix" | "semantic" | "experimental";
+export type ModelFamily = "blend" | "dictionary" | "fusion" | "spelling" | "prefix" | "semantic" | "experimental";
 
 export type ModelContext = {
   a: WordEntry;
