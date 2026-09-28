@@ -276,12 +276,6 @@ export default function App() {
   }, [spinning, liteKeywords]);
 
   useEffect(() => {
-    void runLite();
-    // Initial batch only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target && ["INPUT", "TEXTAREA", "BUTTON"].includes(target.tagName)) return;
@@ -717,7 +711,7 @@ export default function App() {
                         ))}
                       </div>
                     )}
-                    <p className="mt-2 text-[10px] text-[var(--muted)]">{stats.total} starter words across {SOURCE_NAMES.length} source types.</p>
+                    <p className="mt-2 text-[10px] text-[var(--muted)]">{stats.total} words across Core, Top, Trending, Company and Sales libraries.</p>
                   </div>
 
                   <div>
