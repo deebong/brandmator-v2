@@ -77,7 +77,7 @@ export default function NameCard({
         <ScoreRing score={blend.score} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-xl font-semibold tracking-tight text-[var(--text)]">
-            {blend.displayName}
+            {blend.displayName || blend.name}
             <span className="ml-1 text-sm font-normal text-indigo-500">{blend.tld}</span>
           </h3>
           <p className="mt-1 truncate text-xs text-[var(--muted)]">
