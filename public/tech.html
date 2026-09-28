@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Brandmator developer documentation: features, naming models, architecture, data flow, scoring, roadmap and extension guide.">
+<title>Brandmator - Developer Documentation</title>
+<style>
+:root{color-scheme:dark;--bg:#070912;--panel:#0e1320;--panel2:#121827;--text:#eef2ff;--muted:#9aa7bd;--line:rgba(255,255,255,.10);--accent:#8b7cff;--accent2:#d946ef;--good:#5eead4;--code:#0a0f19}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 15% 0%,rgba(99,102,241,.14),transparent 32rem),radial-gradient(circle at 90% 12%,rgba(217,70,239,.12),transparent 28rem),var(--bg);color:var(--text);font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:#b7b0ff;text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{width:min(1100px,calc(100% - 32px));margin:auto}
+header{padding:52px 0 26px;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:13px;font-weight:900;font-size:1.45rem;letter-spacing:-.05em}
+.mark{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(135deg,#60a5fa,#a78bfa,#f0abfc);display:grid;place-items:center;color:#07101b;font-weight:900}
+.eyebrow{margin:34px 0 6px;color:#9f98ff;font-size:11px;text-transform:uppercase;letter-spacing:.2em;font-weight:800}
+h1{font-size:clamp(2.2rem,5vw,4.1rem);line-height:1.05;letter-spacing:-.055em;margin:.2rem 0 1rem}
+h2{margin:3rem 0 .75rem;font-size:1.55rem;letter-spacing:-.03em}
+h3{margin:1.5rem 0 .5rem;font-size:1rem}
+p,li{color:var(--muted)}
+.grid{display:grid;gap:16px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:18px;padding:18px}
+.card strong{color:var(--text)}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--text);background:rgba(255,255,255,.04)}
+td{color:var(--muted)}
+.diagram{padding:20px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.018));overflow:auto}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+code{color:#ddd8ff;background:rgba(139,124,255,.10);padding:.1rem .3rem;border-radius:.35rem}
+pre{margin:0;background:var(--code);border:1px solid var(--line);border-radius:14px;padding:16px;overflow:auto;color:#c8d2e8;font-size:13px}
+.badge{display:inline-block;border:1px solid rgba(139,124,255,.35);background:rgba(139,124,255,.10);padding:3px 8px;border-radius:999px;color:#c8c1ff;font-size:11px;margin:0 6px 6px 0}
+.good{color:var(--good)}
+.small{font-size:12px}
+footer{margin:50px 0;padding:22px 0;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header id="top">
+  <div class="logo"><div class="mark">B</div><div>Brandmator</div></div>
+  <div class="eyebrow">Developer documentation</div>
+  <h1>Multi-model naming engine</h1>
+  <p>Brandmator is a browser-based naming tool that separates naming mechanisms from naming preferences. It combines word intelligence, model-specific generators, model-specific scoring, dictionary modes, brief relevance, user constraints and future domain intelligence.</p>
+  <p><span class="badge">React</span><span class="badge">TypeScript</span><span class="badge">Vite</span><span class="badge">Tailwind</span><span class="badge">GitHub Pages</span></p>
+</header>
+
+<h2 id="features">Feature inventory</h2>
+<div class="grid cards">
+  <div class="card"><strong>Model 0 - Blend All</strong><p>Portfolio/orchestrator mode combining the strongest results from the registered naming models.</p></div>
+  <div class="card"><strong>Models 1-5</strong><p>Fusion, brand spelling, prefix/initial, semantic wordform and experimental strategies with independent scoring.</p></div>
+  <div class="card"><strong>Dictionary modes</strong><p>Pure one-word and pure two-word combinations without fusion. Two-word names are shown in CamelCase while domain strings remain lowercase.</p></div>
+  <div class="card"><strong>Brand brief</strong><p>Local concept matching, simple aliases, inferred categories and relevance-weighted vocabulary selection. Generic business wording is not treated as a primary signal.</p></div>
+  <div class="card"><strong>User controls</strong><p>Categories, word sources, seed words, prefix, suffix, length range, result count and TLD selection remain available under Advanced controls.</p></div>
+  <div class="card"><strong>Result tools</strong><p>Search, model-aware score, model rationale, shortlist, CSV export, domain-only TXT export, pagination and result sorting.</p></div>
+  <div class="card"><strong>UX</strong><p>Light/dark theme, custom dropdowns, hidden native dropdown scrollbars, responsive layout, smooth pointer-driven sliders and footer back-to-top control.</p></div>
+  <div class="card"><strong>SEO/GEO</strong><p>Semantic HTML, metadata, canonical URL, Organization/SoftwareApplication JSON-LD, robots.txt and sitemap.</p></div>
+</div>
+
+<h2 id="architecture">Architecture</h2>
+<div class="diagram">
+<svg viewBox="0 0 1040 470" width="100%" role="img" aria-label="Brandmator architecture diagram">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8b7cff"/></marker></defs>
+<style>
+.t{font:600 15px system-ui;fill:#eef2ff}.s{font:12px system-ui;fill:#9aa7bd}.b{fill:#0e1320;stroke:rgba(255,255,255,.16);stroke-width:1.5}.a{stroke:#8b7cff;stroke-width:2;fill:none;marker-end:url(#a)} 
+</style>
+<rect class="b" x="20" y="45" rx="16" width="180" height="90"/><text class="t" x="110" y="78" text-anchor="middle">Word Intelligence</text><text class="s" x="110" y="101" text-anchor="middle">Core · Popular · Trending</text><text class="s" x="110" y="119" text-anchor="middle">Company · Sales</text>
+<rect class="b" x="20" y="185" rx="16" width="180" height="90"/><text class="t" x="110" y="218" text-anchor="middle">User Inputs</text><text class="s" x="110" y="241" text-anchor="middle">Brief · Seeds · Style</text><text class="s" x="110" y="259" text-anchor="middle">Sources · Vibes · TLDs</text>
+<rect class="b" x="20" y="325" rx="16" width="180" height="90"/><text class="t" x="110" y="358" text-anchor="middle">Dictionary Layer</text><text class="s" x="110" y="381" text-anchor="middle">One word · Two words</text><text class="s" x="110" y="399" text-anchor="middle">CamelCase presentation</text>
+
+<rect class="b" x="290" y="110" rx="18" width="230" height="250"/><text class="t" x="405" y="145" text-anchor="middle">Model Registry</text><text class="s" x="405" y="172" text-anchor="middle">Shared model contract</text>
+<rect class="b" x="315" y="195" rx="12" width="180" height="42"/><text class="s" x="405" y="221" text-anchor="middle">Generator</text>
+<rect class="b" x="315" y="247" rx="12" width="180" height="42"/><text class="s" x="405" y="273" text-anchor="middle">Quality Gate</text>
+<rect class="b" x="315" y="299" rx="12" width="180" height="42"/><text class="s" x="405" y="325" text-anchor="middle">Model-specific Scorer</text>
+
+<rect class="b" x="610" y="125" rx="16" width="185" height="80"/><text class="t" x="702" y="158" text-anchor="middle">Model 0</text><text class="s" x="702" y="182" text-anchor="middle">Portfolio orchestrator</text>
+<rect class="b" x="610" y="225" rx="16" width="185" height="80"/><text class="t" x="702" y="258" text-anchor="middle">Style Preference</text><text class="s" x="702" y="282" text-anchor="middle">User taste adjustment</text>
+<rect class="b" x="610" y="325" rx="16" width="185" height="80"/><text class="t" x="702" y="358" text-anchor="middle">Diversification</text><text class="s" x="702" y="382" text-anchor="middle">Families · models · pairs</text>
+
+<rect class="b" x="875" y="170" rx="16" width="145" height="190"/><text class="t" x="947" y="205" text-anchor="middle">Results</text><text class="s" x="947" y="232" text-anchor="middle">Score + evidence</text><text class="s" x="947" y="252" text-anchor="middle">Shortlist</text><text class="s" x="947" y="272" text-anchor="middle">Sort / filter</text><text class="s" x="947" y="292" text-anchor="middle">CSV / TXT</text><text class="s" x="947" y="312" text-anchor="middle">Future availability</text>
+<path class="a" d="M200 90 L286 160"/><path class="a" d="M200 230 L286 230"/><path class="a" d="M200 370 L286 300"/>
+<path class="a" d="M520 180 L605 165"/><path class="a" d="M520 235 L605 265"/><path class="a" d="M520 295 L605 365"/>
+<path class="a" d="M795 165 L870 220"/><path class="a" d="M795 265 L870 265"/><path class="a" d="M795 365 L870 315"/>
+</svg>
+</div>
+
+<h2 id="contract">Common model contract</h2>
+<pre><code>type NamingModel = {
+  id: ModelId
+  name: string
+  short: string
+  description: string
+  family: ModelFamily
+  generate(context): ModelCandidate[]
+  score(candidate, context): ModelScore
+}</code></pre>
+<p>This is the extension point for future models. A model owns its own generation and scoring philosophy instead of being forced through a global rule set.</p>
+
+<h2 id="models">Model types</h2>
+<table>
+<thead><tr><th>Model</th><th>Purpose</th><th>Typical signals</th></tr></thead>
+<tbody>
+<tr><td>Model 0 - Blend All</td><td>Combines registered models and diversifies the final portfolio.</td><td>Model diversity, score, family diversity</td></tr>
+<tr><td>Model 1 - Inventive Fusion</td><td>Strict coined forms from two source words.</td><td>Phonetic flow, CV pattern, pronounceability, fusion method</td></tr>
+<tr><td>Model 2 - Brand Spelling</td><td>Flickr/censord/blastr-style transformations and familiar endings.</td><td>Root retention, transformation quality, brand endings</td></tr>
+<tr><td>Model 3 - Prefix & Initial</td><td>Prefix + root and initial-letter structures such as fconserve.</td><td>Root retention, prefix clarity, semantic fit</td></tr>
+<tr><td>Model 4 - Semantic Wordform</td><td>Recognizer-friendly forms and useful semantic roots.</td><td>Readability, semantic fit, root retention</td></tr>
+<tr><td>Model 5 - Experimental</td><td>Looser transformations intended to preserve creative outliers.</td><td>Creativity, recognizability, compactness</td></tr>
+</tbody>
+</table>
+
+<h2 id="brief">Brand brief</h2>
+<p>The current brief layer is intentionally deterministic and browser-local. It tokenizes the description, ignores common filler and generic business terms, uses a small alias set, infers categories, finds related library vocabulary and increases weighted selection for relevant terms.</p>
+<pre><code>brand description
+      |
+      v
+focus terms + aliases
+      |
+      +----> inferred categories
+      |
+      +----> matched vocabulary
+                    |
+                    v
+             weighted word selection
+                    |
+                    v
+             model generation
+                    |
+                    v
+             model-specific score</code></pre>
+<p>The next AI-assisted layer can consume the same contract later for deeper concept extraction, audience, tone, forbidden clichés, differentiators and creative directions.</p>
+
+<h2 id="styles">Naming styles</h2><p>Style is a preference layer, not a replacement for the naming model. Presets include Balanced, More Inventive, More Meaningful, More Playful, More Professional and Short &amp; Punchy. The selected style adjusts final preference weighting while the underlying model keeps its own generation and scoring philosophy.</p><h2 id="dictionary">Dictionary modes</h2>
+<div class="grid cards">
+  <div class="card"><strong>Pure dictionary - One word</strong><p>Returns untouched vocabulary entries. It does not imply availability or uniqueness. A common word can still be useful on another TLD.</p></div>
+  <div class="card"><strong>Pure dictionary - Two words</strong><p>Joins two untouched words without portmanteau fusion. The UI can present <code>BlueOcean</code> while the actual domain string remains <code>blueocean</code>.</p></div>
+</div>
+
+<h2 id="data">Data layer</h2>
+<p>Current word sources are isolated into separate pools. The merged library retains source provenance, categories and weights. Sales vocabulary is a starter signal set derived from reported sales rather than a live sales feed.</p>
+<p>Planned ingestion can replace or append these static pools without changing model code.</p>
+
+<h2 id="analytics">Analytics extension point</h2>
+<pre><code>track("generate", payload)
+track("model_change", payload)
+track("candidate_mode_change", payload)
+track("sort_change", payload)
+track("brief_submit", payload)
+track("result_save", payload)
+track("tld_change", payload)</code></pre>
+<p>There is currently no analytics storage backend. A future Google Apps Script adapter can send these events to Google Sheets for aggregate product research without coupling storage to the naming engine.</p>
+
+<h2 id="domain">Future domain availability architecture</h2>
+<p>Availability should be a separate service layer, not part of generation. The intended design is browser -&gt; cache/batch service -&gt; registrar/RDAP adapter. Recent checks can be cached and duplicate requests collapsed, reducing unnecessary provider traffic.</p>
+
+<h2 id="roadmap">Roadmap</h2>
+<div class="grid cards">
+  <div class="card"><strong class="good">Now</strong><p>Multi-model registry, model-specific scorers, brief relevance, dictionary modes, style preferences, responsive UX.</p></div>
+  <div class="card"><strong>Next</strong><p>Model-specific quality gates, stronger pronunciation analysis, better model portfolio allocation, name-family grouping.</p></div>
+  <div class="card"><strong>Then</strong><p>AI-assisted brief interpretation, availability cache/service, TLD comparison, conflict/trademark signals.</p></div>
+  <div class="card"><strong>Later</strong><p>User preference learning, scheduled sales-data ingestion, additional naming models and richer reporting.</p></div>
+</div>
+
+<h2 id="add-model">How to add a future model</h2>
+<pre><code>1. Create src/models/model6-your-style.ts
+2. Implement the NamingModel contract.
+3. Add generation rules.
+4. Add a model-specific quality gate.
+5. Add model-specific scoring dimensions.
+6. Register the model in src/models/registry.ts.
+7. Add documentation for the new model.
+8. Let Model 0 discover it through the registry.</code></pre>
+<p>Do not modify the core generator to add model-specific logic. The registry is the intended extension point.</p>
+
+<h2 id="deployment">Development and deployment</h2>
+<p>The application is a Vite/React/TypeScript SPA. Local Node installation is not required for the intended workflow: GitHub Actions performs dependency installation and the production build, then deploys the generated <code>dist</code> artifact to GitHub Pages.</p>
+
+<h2 id="limits">Important boundaries</h2>
+<ul>
+<li>Scores are heuristic model signals, not legal or trademark clearance.</li>
+<li>Generated names are not guaranteed to be available on any TLD.</li>
+<li>TLD cost metadata is an estimate and may change by registrar, registry, promotion and premium status.</li>
+<li>The current brand brief is local deterministic relevance matching; it is not yet an LLM.</li>
+<li>Sales vocabulary is a starter dataset, not a complete real-time sales feed.</li>
+</ul>
+
+<footer><a href="#top">Back to top</a> · <a href="/brandmator-v2/">Open Brandmator</a> · <a href="https://github.com/deebong/brandmator-v2">GitHub repository</a><div class="small">Brandmator developer documentation · 2026</div></footer>
+</div>
+</body>
+</html>

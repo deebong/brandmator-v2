@@ -1,4 +1,5 @@
 import type { Category, WordEntry } from "../data/types";
+import type { NamingStyleId } from "../lib/style";
 
 export type ModelId = "m0" | "m1" | "m2" | "m3" | "m4" | "m5";
 export type ModelFamily = "blend" | "dictionary" | "fusion" | "spelling" | "prefix" | "semantic" | "experimental";
@@ -9,6 +10,7 @@ export type ModelContext = {
   prefix: string;
   suffix: string;
   briefTerms: string[];
+  style: NamingStyleId;
 };
 
 export type ModelCandidate = {

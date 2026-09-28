@@ -2,6 +2,7 @@ export type AnalyticsEventName =
   | "generate"
   | "model_change"
   | "candidate_mode_change"
+  | "style_change"
   | "sort_change"
   | "brief_submit"
   | "result_save"

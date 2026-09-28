@@ -14,7 +14,7 @@
   --border:rgba(15,23,42,.10);
   --border-strong:rgba(15,23,42,.22);
   --ring-track:rgba(15,23,42,.13);
-  --score-center:rgba(255,255,255,.92);  --dropdown:rgba(255,255,255,.96);
+  --score-center:rgba(255,255,255,.92);  --dropdown:rgba(255,255,255,.96);  --slider-track:rgba(15,23,42,.12);
   --logo-core:#ffffff
 }
 :root[data-theme="dark"]{
@@ -30,7 +30,7 @@
   --border:rgba(255,255,255,.10);
   --border-strong:rgba(255,255,255,.24);
   --ring-track:rgba(255,255,255,.15);
-  --score-center:#0d111c;  --dropdown:#111523;
+  --score-center:#0d111c;  --dropdown:#111523;  --slider-track:rgba(255,255,255,.16);
   --logo-core:#070912
 }
 
