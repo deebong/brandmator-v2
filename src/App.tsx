@@ -150,6 +150,8 @@ export default function App() {
   const [spinning, setSpinning] = useState(false);
   const [resultSort, setResultSort] = useState<ResultSort>("score-desc");
   const [generationProgress, setGenerationProgress] = useState<GenerateProgress>({ phase: "preparing", percent: 0, found: 0 });
+  const liteKeyRef = useRef("");
+  const liteUsedNamesRef = useRef<Set<string>>(new Set());
   const [showMoreRecipes, setShowMoreRecipes] = useState(false);
   const [showMoreSettings, setShowMoreSettings] = useState(false);
 
@@ -246,12 +248,19 @@ export default function App() {
     setGenerationProgress({ phase: "preparing", percent: 2, found: 0 });
     setPage(1);
     setShowSaved(false);
+    setResults([]);
 
     const keywords = liteKeywords
-      .split(/[,\\n]+/)
+      .split(/[,\n]+/)
       .map(value => value.trim())
       .filter(Boolean)
       .slice(0, 12);
+
+    const key = keywords.map(value => value.toLowerCase()).join("|");
+    if (liteKeyRef.current !== key) {
+      liteKeyRef.current = key;
+      liteUsedNamesRef.current = new Set();
+    }
 
     const nextResults = await generateAsync(
       {
@@ -265,64 +274,19 @@ export default function App() {
         count: 120,
         seedWords: keywords,
         brief: keywords.join(" "),
-        tlds: [".com"]
+        tlds: [".com"],
+        lite: true,
+        excludeNames: [...liteUsedNamesRef.current]
       },
       progress => setGenerationProgress(progress)
     );
+
+    for (const item of nextResults) liteUsedNamesRef.current.add(item.name);
 
     setResults(nextResults);
     setSpinning(false);
     setGenerationProgress({ phase: "finishing", percent: 100, found: nextResults.length });
   }, [spinning, liteKeywords]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target && ["INPUT", "TEXTAREA", "BUTTON"].includes(target.tagName)) return;
-      if (event.code === "Space") {
-        event.preventDefault();
-        run();
-      }
-    };
-    addEventListener("keydown", onKey);
-    return () => removeEventListener("keydown", onKey);
-  }, [run]);
-
-  const toggle = <T,>(arr: T[], value: T, setter: (next: T[]) => void) =>
-    setter(arr.includes(value) ? arr.filter(item => item !== value) : [...arr, value]);
-
-  const savedIds = useMemo(() => new Set(saved.map(item => item.name + item.tld)), [saved]);
-
-  const toggleSave = (blend: Blend) => {
-    const key = blend.name + blend.tld;
-    const willSave = !saved.some(item => item.name + item.tld === key);
-    setSaved(previous =>
-      willSave ? [blend, ...previous] : previous.filter(item => item.name + item.tld !== key)
-    );
-    track("result_save", { domain: key, saved: willSave, model: blend.modelName });
-  };
-
-  const shown = useMemo(
-    () =>
-      (showSaved ? saved : results).filter(
-        item => !query || (item.name + item.tld).toLowerCase().includes(query.toLowerCase())
-      ),
-    [showSaved, saved, results, query]
-  );
-
-  const sortedShown = useMemo(() => sortResults(shown, resultSort), [shown, resultSort]);
-  const pages = Math.max(1, Math.ceil(sortedShown.length / PAGE_SIZE));
-  const current = Math.min(page, pages);
-  const items = sortedShown.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
-
-  const addTld = () => {
-    const tld = tldValid(tldInput);
-    if (tld && !tlds.includes(tld)) {
-      setTlds(previous => [...previous, tld]);
-      track("tld_change", { action: "add", tld });
-    }
-    setTldInput("");
-  };
 
   const setRecipe = (next: RecipeId) => {
     setRecipeId(next);
