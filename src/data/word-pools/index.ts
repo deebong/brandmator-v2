@@ -4,6 +4,7 @@ import { POPULAR_WORDS } from "./popular";
 import { TRENDING_WORDS } from "./trending";
 import { COMPANY_WORDS } from "./company";
 import { SALES_WORDS } from "./sales";
+export { TLD_INFO, TLD_COST_SORT_VALUE } from "../tlds";
 export const CATEGORY_META: Record<Category,{label:string;emoji:string;accent:string}> = {
 tech:{label:"Tech",emoji:"◈",accent:"from-sky-400 to-indigo-500"},ai:{label:"AI",emoji:"✦",accent:"from-violet-400 to-fuchsia-500"},business:{label:"Business",emoji:"◫",accent:"from-blue-400 to-cyan-500"},finance:{label:"Finance",emoji:"◉",accent:"from-emerald-400 to-teal-500"},commerce:{label:"Commerce",emoji:"◇",accent:"from-rose-400 to-orange-500"},health:{label:"Health",emoji:"＋",accent:"from-green-400 to-lime-500"},creative:{label:"Creative",emoji:"✎",accent:"from-pink-400 to-purple-500"},nature:{label:"Nature",emoji:"❋",accent:"from-emerald-400 to-cyan-500"},energy:{label:"Energy",emoji:"ϟ",accent:"from-amber-400 to-orange-500"},food:{label:"Food",emoji:"●",accent:"from-orange-400 to-pink-500"},science:{label:"Science",emoji:"⊕",accent:"from-cyan-400 to-blue-500"},mythic:{label:"Mythic",emoji:"◇",accent:"from-violet-400 to-indigo-500"},abstract:{label:"Abstract",emoji:"○",accent:"from-fuchsia-400 to-purple-500"}
 };
