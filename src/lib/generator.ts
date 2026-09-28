@@ -159,15 +159,16 @@ function familyKey(name: string) {
   return value.slice(0, Math.min(5, value.length));
 }
 
-function diversify(candidates: Blend[], count: number) {
+function diversify(candidates: Blend[], count: number, anchors: WordEntry[] = []) {
   const ordered = [...candidates].sort((a, b) => b.score - a.score);
   const familyCounts = new Map<string, number>();
   const modelCounts = new Map<string, number>();
   const pairCounts = new Map<string, number>();
   const chosen: Blend[] = [];
+  const chosenNames = new Set<string>();
 
-  for (const candidate of ordered) {
-    if (chosen.length >= count) break;
+  const addCandidate = (candidate: Blend) => {
+    if (chosen.length >= count || chosenNames.has(candidate.name)) return false;
 
     const family = familyKey(candidate.name);
     const model = candidate.modelId;
@@ -175,23 +176,36 @@ function diversify(candidates: Blend[], count: number) {
     const familyCap = candidate.family === "dictionary" ? 8 : 4;
     const modelCap = candidate.modelId === "m0" ? count : Math.ceil(count * 0.42);
 
-    if ((familyCounts.get(family) || 0) >= familyCap) continue;
-    if ((modelCounts.get(model) || 0) >= modelCap) continue;
-    if ((pairCounts.get(pair) || 0) >= 4) continue;
+    if ((familyCounts.get(family) || 0) >= familyCap) return false;
+    if ((modelCounts.get(model) || 0) >= modelCap) return false;
+    if ((pairCounts.get(pair) || 0) >= 4) return false;
 
     familyCounts.set(family, (familyCounts.get(family) || 0) + 1);
     modelCounts.set(model, (modelCounts.get(model) || 0) + 1);
     pairCounts.set(pair, (pairCounts.get(pair) || 0) + 1);
+    chosenNames.add(candidate.name);
     chosen.push(candidate);
+    return true;
+  };
+
+  // Preserve explicit user-word coverage before general score-based diversification.
+  for (const anchor of anchors) {
+    const match = ordered.find(candidate =>
+      candidate.a === anchor.word || candidate.b === anchor.word
+    );
+    if (match) addCandidate(match);
+  }
+
+  for (const candidate of ordered) {
+    if (chosen.length >= count) break;
+    addCandidate(candidate);
   }
 
   if (chosen.length < count) {
-    const names = new Set(chosen.map(item => item.name));
-
     for (const candidate of ordered) {
       if (chosen.length >= count) break;
-      if (names.has(candidate.name)) continue;
-      names.add(candidate.name);
+      if (chosenNames.has(candidate.name)) continue;
+      chosenNames.add(candidate.name);
       chosen.push(candidate);
     }
   }
@@ -505,7 +519,7 @@ export function generate(opts: GenOptions): Blend[] {
     }
   }
 
-  return diversify(pool, count);
+  return diversify(pool, count, customPool);
 }
 
 export const title = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
