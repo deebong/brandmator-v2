@@ -51,7 +51,7 @@ function tokenize(brief: string) {
     .replace(/[^a-z0-9\s-]/g, " ")
     .split(/\s+/)
     .map(token => token.replace(/^-+|-+$/g, ""))
-    .filter(token => token.length >= 3 && !STOP.has(token));
+    .filter(token => (token.length >= 3 || ["ai","ml","ar","xr","ev"].includes(token)) && !STOP.has(token));
 }
 
 function stems(token: string) {

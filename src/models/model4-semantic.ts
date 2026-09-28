@@ -41,6 +41,7 @@ export const MODEL_4: NamingModel = {
     return output;
   },
 
+  accept: candidate => isSafeName(candidate.name),
   score: (candidate, { a, b, briefTerms }) => {
     const readable = candidate.method === "dictionary-word" ? 98 : 84;
     const retention = Math.max(rootRetention(candidate.name, a.word), rootRetention(candidate.name, b.word));

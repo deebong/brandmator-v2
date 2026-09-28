@@ -27,6 +27,7 @@ export const MODEL_2: NamingModel = {
     return output;
   },
 
+  accept: candidate => isSafeName(candidate.name),
   score: (candidate, { a, b, briefTerms }) => {
     const shape = scoringText(candidate.name);
     const retention = Math.max(rootRetention(candidate.name, a.word), rootRetention(candidate.name, b.word));

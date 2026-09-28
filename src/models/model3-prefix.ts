@@ -33,6 +33,7 @@ export const MODEL_3: NamingModel = {
     return output;
   },
 
+  accept: candidate => isSafeName(candidate.name) && !BAD.test(candidate.name),
   score: (candidate, { a, b, briefTerms }) => {
     const sourceRoot = candidate.name.includes(a.word) ? a.word : candidate.name.includes(b.word) ? b.word : a.word;
     const retention = rootRetention(candidate.name, sourceRoot);
