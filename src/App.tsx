@@ -14,7 +14,7 @@ import { RECIPES, type RecipeId, getRecipe } from "./lib/recipes";
 import { RESULT_SORTS, sortResults, type ResultSort } from "./lib/result-sort";
 import { analyzeBrief } from "./lib/brief";
 import type { Category, WordSource } from "./data/types";
-import { generate, type Blend } from "./lib/generator";
+import { generateAsync, type Blend, type GenerateProgress } from "./lib/generator";
 import NameCard from "./components/NameCard";
 import StyledSelect from "./components/StyledSelect";
 import RangeSlider from "./components/RangeSlider";
@@ -32,31 +32,31 @@ const SOURCE_PRESETS: Array<{ value: SourcePreset; label: string; description: s
     value: "broad",
     label: "Broad mix",
     description: "All current vocabulary pools.",
-    sources: ["core", "popular", "trending", "company", "sales"]
+    sources: ["core", "top", "trending", "company", "sales"]
   },
   {
     value: "current",
     label: "Current signals",
-    description: "Popular + trending vocabulary.",
-    sources: ["core", "popular", "trending"]
+    description: "Top + trending vocabulary.",
+    sources: ["core", "top", "trending"]
   },
   {
     value: "startup",
     label: "Startup signals",
-    description: "Popular + trending + company vocabulary.",
-    sources: ["popular", "trending", "company"]
+    description: "Top + trending + company vocabulary.",
+    sources: ["top", "trending", "company"]
   },
   {
     value: "sales",
     label: "Sales-led",
-    description: "Reported sales signals with popular/trending vocabulary.",
-    sources: ["popular", "trending", "sales"]
+    description: "Reported sales signals with top/trending vocabulary.",
+    sources: ["top", "trending", "sales"]
   },
   {
     value: "custom",
     label: "Choose sources",
     description: "Pick the exact pools yourself.",
-    sources: ["core", "popular", "trending", "company", "sales"]
+    sources: ["core", "top", "trending", "company", "sales"]
   }
 ];
 
@@ -124,6 +124,7 @@ function inputClass() {
 }
 
 export default function App() {
+  const [interfaceMode, setInterfaceMode] = useState<"lite" | "full">("lite");
   const [recipeId, setRecipeId] = useState<RecipeId>("surprise");
   const [style, setStyle] = useState<NamingStyleId>("balanced");
   const [topicPreset, setTopicPreset] = useState("auto");
@@ -134,6 +135,7 @@ export default function App() {
   const [tldInput, setTldInput] = useState("");
   const [brief, setBrief] = useState("");
   const [seedWordsInput, setSeedWordsInput] = useState("");
+  const [liteKeywords, setLiteKeywords] = useState("");
   const [prefix, setPrefix] = useState("");
   const [suffix, setSuffix] = useState("");
   const [minLen, setMinLen] = useState(5);
@@ -147,6 +149,7 @@ export default function App() {
   const [light, setLight] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [resultSort, setResultSort] = useState<ResultSort>("score-desc");
+  const [generationProgress, setGenerationProgress] = useState<GenerateProgress>({ phase: "preparing", percent: 0, found: 0 });
   const [showMoreRecipes, setShowMoreRecipes] = useState(false);
   const [showMoreSettings, setShowMoreSettings] = useState(false);
 
@@ -182,56 +185,47 @@ export default function App() {
     if (preset) setCategories(preset.categories);
   }, [topicPreset]);
 
-  const run = useCallback(() => {
+  const run = useCallback(async () => {
+    if (spinning) return;
+
     setSpinning(true);
+    setGenerationProgress({ phase: "preparing", percent: 2, found: 0 });
     setPage(1);
     setShowSaved(false);
 
     const seedWords = seedWordsInput
-      .split(/[,\n]+/)
+      .split(/[,\\n]+/)
       .map(value => value.trim())
       .filter(Boolean)
-      .slice(0, 8);
+      .slice(0, 12);
 
-    const nextResults = generate({
-      modelId: recipe.modelId,
-      candidateMode: recipe.candidateMode,
-      style,
-      categories,
-      sources,
-      minLen: Math.min(minLen, maxLen),
-      maxLen: Math.max(minLen, maxLen),
-      count,
-      seedWords,
-      seedA: seedWords[0] || undefined,
-      seedB: seedWords[1] || undefined,
-      prefix: prefix.trim() || undefined,
-      suffix: suffix.trim() || undefined,
-      brief,
-      tlds
-    });
+    const nextResults = await generateAsync(
+      {
+        modelId: recipe.modelId,
+        candidateMode: recipe.candidateMode,
+        style,
+        categories,
+        sources,
+        minLen: Math.min(minLen, maxLen),
+        maxLen: Math.max(minLen, maxLen),
+        count,
+        seedWords,
+        seedA: seedWords[0] || undefined,
+        seedB: seedWords[1] || undefined,
+        prefix: prefix.trim() || undefined,
+        suffix: suffix.trim() || undefined,
+        brief,
+        tlds
+      },
+      progress => setGenerationProgress(progress)
+    );
 
     setResults(nextResults);
-    track("generate", {
-      recipe: recipeId,
-      style,
-      topic: topicPreset,
-      sources,
-      tldCount: tlds.length,
-      requestedResults: count,
-      minLength: minLen,
-      maxLength: maxLen,
-      briefLength: brief.trim().length,
-      briefMatches: briefAnalysis.matches.length,
-      seedWordCount: seedWords.length,
-      hasPrefix: Boolean(prefix.trim()),
-      hasSuffix: Boolean(suffix.trim())
-    });
-
-    window.setTimeout(() => setSpinning(false), 280);
+    setSpinning(false);
+    setGenerationProgress({ phase: "finishing", percent: 100, found: nextResults.length });
   }, [
+    spinning,
     recipe,
-    recipeId,
     style,
     categories,
     sources,
@@ -242,16 +236,44 @@ export default function App() {
     prefix,
     suffix,
     brief,
-    tlds,
-    topicPreset,
-    briefAnalysis.matches.length
+    tlds
   ]);
 
-  useEffect(() => {
-    run();
-    // Initial batch only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const runLite = useCallback(async () => {
+    if (spinning) return;
+
+    setSpinning(true);
+    setGenerationProgress({ phase: "preparing", percent: 2, found: 0 });
+    setPage(1);
+    setShowSaved(false);
+
+    const keywords = liteKeywords
+      .split(/[,\\n]+/)
+      .map(value => value.trim())
+      .filter(Boolean)
+      .slice(0, 12);
+
+    const nextResults = await generateAsync(
+      {
+        modelId: "m0",
+        candidateMode: "models",
+        style: "balanced",
+        categories: [],
+        sources: ["core", "top", "trending", "company", "sales"],
+        minLen: 5,
+        maxLen: 12,
+        count: 120,
+        seedWords: keywords,
+        brief: keywords.join(" "),
+        tlds: [".com"]
+      },
+      progress => setGenerationProgress(progress)
+    );
+
+    setResults(nextResults);
+    setSpinning(false);
+    setGenerationProgress({ phase: "finishing", percent: 100, found: nextResults.length });
+  }, [spinning, liteKeywords]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -326,7 +348,23 @@ export default function App() {
             <span className="brand-wordmark">Brand<span className="brand-wordmark-accent">mator</span></span>
           </a>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-xl border border-[var(--border)] bg-[var(--chip)] p-0.5" aria-label="Interface mode">
+              <button
+                type="button"
+                onClick={() => setInterfaceMode("lite")}
+                className={"rounded-lg px-3 py-1.5 text-[11px] font-semibold transition " + (interfaceMode === "lite" ? "bg-indigo-600 text-white shadow-sm" : "text-[var(--text-soft)] hover:bg-[var(--chip-hover)]")}
+              >
+                Lite
+              </button>
+              <button
+                type="button"
+                onClick={() => setInterfaceMode("full")}
+                className={"rounded-lg px-3 py-1.5 text-[11px] font-semibold transition " + (interfaceMode === "full" ? "bg-indigo-600 text-white shadow-sm" : "text-[var(--text-soft)] hover:bg-[var(--chip-hover)]")}
+              >
+                Full
+              </button>
+            </div>
             <button onClick={() => setLight(value => !value)} className="rounded-xl border border-[var(--border)] bg-[var(--chip)] px-3 py-2 text-xs font-medium">
               {light ? "☾ Dark" : "☀ Light"}
             </button>
@@ -395,6 +433,64 @@ export default function App() {
           </p>
         </section>
 
+        {interfaceMode === "lite" ? (
+          <section className="mt-8 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm sm:p-7">
+            <div className="mx-auto max-w-3xl">
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Lite mode</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">What should the name be about?</h2>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">
+                  Type a keyword or several ideas. Brandmator will mix its naming approaches and return 120 candidates between 5 and 12 letters.
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <input
+                  value={liteKeywords}
+                  onChange={event => setLiteKeywords(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === "Enter") void runLite();
+                  }}
+                  placeholder="e.g. cat, dog, pet"
+                  className="min-w-0 flex-1 rounded-2xl border border-[var(--border)] bg-[var(--input)] px-4 py-3.5 text-sm outline-none placeholder:text-[var(--muted)] focus:border-indigo-400"
+                  aria-label="Lite mode keywords"
+                />
+                <button
+                  type="button"
+                  onClick={() => void runLite()}
+                  disabled={spinning}
+                  className="group shrink-0 rounded-2xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-2xl hover:shadow-indigo-500/20 active:translate-y-0 active:scale-[.98] disabled:cursor-wait disabled:opacity-70"
+                >
+                  <span className={spinning ? "mr-2 inline-block animate-spin" : "mr-2 inline-block transition-transform duration-200 group-hover:rotate-90"}>✦</span>
+                  {spinning ? `Generating ${generationProgress.percent}%` : "Generate names"}
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-[var(--muted)]">
+                <span>120 names</span>
+                <span>5–12 letters</span>
+                <span>All naming approaches</span>
+                <button
+                  type="button"
+                  onClick={() => setInterfaceMode("full")}
+                  className="font-medium text-indigo-500 hover:text-indigo-400"
+                >
+                  Need more control? Use Full mode
+                </button>
+              </div>
+
+              {spinning && (
+                <div className="mt-5 overflow-hidden rounded-full bg-[var(--slider-track)]">
+                  <div
+                    className="h-1.5 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 transition-[width] duration-100"
+                    style={{ width: generationProgress.percent + "%" }}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+        ) : (
+          <div>
         <section className="mt-8 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:p-6">
           <div className="space-y-7">
             <div>
@@ -522,28 +618,28 @@ export default function App() {
                   <input
                     value={prefix}
                     onChange={event => setPrefix(event.target.value)}
-                    placeholder="e.g. f"
+                    placeholder="e.g. neo, eco, i"
                     className={inputClass()}
                   />
-                  <span className="mt-1 block text-[10px] text-[var(--muted)]">Only results beginning with this text are shown.</span>
+                  <span className="mt-1 block text-[10px] text-[var(--muted)]">Every result starts with one of these prefixes. Separate with commas.</span>
                 </label>
                 <label>
                   <span className="text-xs font-medium text-[var(--text-soft)]">Ends with</span>
                   <input
                     value={suffix}
                     onChange={event => setSuffix(event.target.value)}
-                    placeholder="e.g. ly"
+                    placeholder="e.g. ly, io, x"
                     className={inputClass()}
                   />
-                  <span className="mt-1 block text-[10px] text-[var(--muted)]">Only results ending with this text are shown.</span>
+                  <span className="mt-1 block text-[10px] text-[var(--muted)]">Every result ends with one of these suffixes. Separate with commas.</span>
                 </label>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-3 text-[11px] text-[var(--muted)]">
                 <span>{Math.min(minLen, maxLen)}–{Math.max(minLen, maxLen)} letters</span>
                 <span>{tlds.length || 0} TLDs</span>
-                {prefix && <span>starts: <strong className="text-[var(--text-soft)]">{prefix.toLowerCase()}</strong></span>}
-                {suffix && <span>ends: <strong className="text-[var(--text-soft)]">{suffix.toLowerCase()}</strong></span>}
+                {prefix && <span>starts: <strong className="text-[var(--text-soft)]">{prefix.toLowerCase().split(/[,\\s]+/).filter(Boolean).join(" · ")}</strong></span>}
+                {suffix && <span>ends: <strong className="text-[var(--text-soft)]">{suffix.toLowerCase().split(/[,\\s]+/).filter(Boolean).join(" · ")}</strong></span>}
                 {seedWordsInput && <span>using your words</span>}
               </div>
             </div>
@@ -552,10 +648,10 @@ export default function App() {
               <button
                 onClick={run}
                 disabled={spinning}
-                className="rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 disabled:opacity-70"
+                className="group rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-2xl hover:shadow-indigo-500/20 active:translate-y-0 active:scale-[.98] disabled:cursor-wait disabled:opacity-70"
               >
-                <span className={spinning ? "mr-2 inline-block animate-spin" : "mr-2 inline-block"}>✦</span>
-                {spinning ? "Generating…" : "Generate names"}
+                <span className={spinning ? "mr-2 inline-block animate-spin" : "mr-2 inline-block transition-transform duration-200 group-hover:rotate-90"}>✦</span>
+                {spinning ? `Generating ${generationProgress.percent}%` : "Generate names"}
               </button>
               <div className="min-w-0 flex-1 text-xs text-[var(--muted)]">
                 <strong className="text-[var(--text-soft)]">{recipe.label}</strong>
@@ -615,7 +711,7 @@ export default function App() {
                         ))}
                       </div>
                     )}
-                    <p className="mt-2 text-[10px] text-[var(--muted)]">{stats.total} starter words across {SOURCE_NAMES.length} source types.</p>
+                    <p className="mt-2 text-[10px] text-[var(--muted)]">{stats.total} words across Core, Top, Trending, Company and Sales libraries.</p>
                   </div>
 
                   <div>
@@ -627,8 +723,8 @@ export default function App() {
                   </div>
 
                   <div>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">How many results?</p>
-                    <RangeSlider label="Result count" value={count} min={6} max={120} onChange={setCount} />
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">How many results? (up to 1000)</p>
+                    <RangeSlider label="Result count" value={count} min={6} max={1000} step={1} onChange={setCount} />
                   </div>
 
                   <div className="lg:col-span-2">
@@ -657,6 +753,9 @@ export default function App() {
           </div>
         </section>
 
+
+          </div>
+        )}
         <section className="mt-8" aria-labelledby="results-heading">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -752,7 +851,7 @@ export default function App() {
           </article>
           <article id="data-sources" className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5">
             <h3 className="font-semibold">Data sources</h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{stats.total} starter words currently come from isolated core, popular, trending, company and reported sales-signal pools. More data sources can be added without changing the model contract.</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{stats.total} starter words currently come from isolated core, top, trending, company and reported sales-signal pools. More data sources can be added without changing the model contract.</p>
           </article>
         </section>
 
