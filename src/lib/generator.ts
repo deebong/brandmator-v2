@@ -145,18 +145,26 @@ function customEntry(word: string, selected: WordEntry[]): WordEntry {
   );
 }
 
-function familyKey(name: string) {
-  const value = name.toLowerCase();
-  const suffixes = ["ify", "ora", "ly", "io", "eo", "ia", "ix", "um", "ra", "z", "x", "r", "y"];
+function familyKey(name: string, prefixes: string[] = [], suffixes: string[] = []) {
+  let value = name.toLowerCase();
 
-  for (const suffix of suffixes) {
-    if (value.length > suffix.length + 3 && value.endsWith(suffix)) return value.slice(0, -suffix.length);
+  const userPrefix = [...prefixes].sort((a, b) => b.length - a.length).find(prefix => value.startsWith(prefix));
+  if (userPrefix && value.length > userPrefix.length + 2) value = value.slice(userPrefix.length);
+
+  const userSuffix = [...suffixes].sort((a, b) => b.length - a.length).find(suffix => value.endsWith(suffix));
+  if (userSuffix && value.length > userSuffix.length + 2) value = value.slice(0, -userSuffix.length);
+
+  const brandSuffixes = ["ify", "ora", "ly", "io", "eo", "ia", "ix", "um", "ra", "z", "x", "r", "y"];
+  for (const suffix of brandSuffixes) {
+    if (value.length > suffix.length + 3 && value.endsWith(suffix)) {
+      return value.slice(0, -suffix.length);
+    }
   }
 
   return value.slice(0, Math.min(5, value.length));
 }
 
-function diversify(candidates: Blend[], count: number, anchors: WordEntry[] = []) {
+function diversify(candidates: Blend[], count: number, anchors: WordEntry[] = [], prefixes: string[] = [], suffixes: string[] = []) {
   const ordered = [...candidates].sort((a, b) => b.score - a.score);
   const familyCounts = new Map<string, number>();
   const modelCounts = new Map<string, number>();
@@ -167,7 +175,7 @@ function diversify(candidates: Blend[], count: number, anchors: WordEntry[] = []
   const addCandidate = (candidate: Blend) => {
     if (chosen.length >= count || chosenNames.has(candidate.name)) return false;
 
-    const family = familyKey(candidate.name);
+    const family = familyKey(candidate.name, prefixes, suffixes);
     const model = candidate.modelId;
     const pair = candidate.a + "|" + candidate.b;
     const familyCap = candidate.family === "dictionary" ? 10 : 5;
