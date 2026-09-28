@@ -6,29 +6,18 @@ export type ResultSort =
   | "score-asc"
   | "length-asc"
   | "length-desc"
-  | "two-words"
   | "cost-asc";
 
 export const RESULT_SORTS: Array<{ value: ResultSort; label: string }> = [
   { value: "length-asc", label: "Length · Low–High" },
   { value: "length-desc", label: "Length · High–Low" },
-  { value: "two-words", label: "Two-words · Pure fusions" },
   { value: "score-desc", label: "High score" },
   { value: "score-asc", label: "Low score" },
   { value: "cost-asc", label: "Cost · Low–High" }
 ];
 
-const isPureFusion = (item: Blend) =>
-  item.family === "fusion" &&
-  !item.method.includes("user-modified");
-
 export function sortResults(items: Blend[], sort: ResultSort): Blend[] {
   const copy = [...items];
-
-  if (sort === "two-words") {
-    return copy.filter(isPureFusion).sort((a, b) => b.score - a.score);
-  }
-
   return copy.sort((a, b) => {
     if (sort === "length-asc") return a.name.length - b.name.length || b.score - a.score;
     if (sort === "length-desc") return b.name.length - a.name.length || b.score - a.score;
