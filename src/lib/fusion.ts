@@ -121,25 +121,12 @@ export function fusePair(aRaw: string, bRaw: string): FusionVariant[] {
     { name: bridge(a, b) || "", method: "vowel-bridge" }
   ];
 
-  const base = raw.map(v => ({ ...v, name: clean(v.name) })).filter(v =>
-    v.name.length >= 4 &&
-    v.name.length <= 10 &&
-    passesNameQuality(v.name)
-  );
+  const base = raw
+    .map(v => ({ ...v, name: clean(v.name) }))
+    .filter(v => v.name.length >= 4 && v.name.length <= 10 && passesNameQuality(v.name));
 
-  const styled: FusionVariant[] = [];
-  for (const variant of base) {
-    for (const styledVariant of creativeVariants(variant.name)) {
-      styled.push({
-        ...styledVariant,
-        method: `${styledVariant.method}(${variant.method})`
-      });
-    }
-  }
-
-  const merged = [...base, ...styled];
   const seen = new Set<string>();
-  return merged.filter(v => {
+  return base.filter(v => {
     if (!v.name || seen.has(v.name)) return false;
     seen.add(v.name);
     return true;
