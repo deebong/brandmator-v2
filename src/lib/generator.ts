@@ -109,6 +109,21 @@ function matchesConstraints(name: string, prefix: string, suffix: string) {
   return true;
 }
 
+function applyAffixes(name: string, prefix: string, suffix: string) {
+  const value = normalize(name);
+  const start = normalize(prefix);
+  const end = normalize(suffix);
+
+  if (!value) return value;
+
+  const withPrefix = start && !value.startsWith(start) ? start + value : value;
+  return end && !withPrefix.endsWith(end) ? withPrefix + end : withPrefix;
+}
+
+function hasExplicitAffix(prefix: string, suffix: string) {
+  return Boolean(normalize(prefix) || normalize(suffix));
+}
+
 function familyKey(name: string) {
   const value = name.toLowerCase();
   const suffixes = ["ify", "ora", "ly", "io", "eo", "ia", "ix", "um", "ra", "z", "x", "r", "y"];
@@ -171,10 +186,20 @@ function dictionaryBlend(
   candidate: ReturnType<typeof dictionaryOne>[number] | ReturnType<typeof dictionaryTwo>[number],
   tld: string,
   mode: CandidateMode,
-  style: NamingStyleId
+  style: NamingStyleId,
+  prefix = "",
+  suffix = ""
 ): Blend {
   const b = candidate.b || candidate.a;
-  const displayName = mode === "dictionary-two" ? camelCaseTwoWords(candidate.a.word, b.word) : candidate.name;
+  const displayName =
+    mode === "dictionary-two"
+      ? (hasExplicitAffix(prefix, suffix)
+          ? [prefix, camelCaseTwoWords(candidate.a.word, b.word), suffix].filter(Boolean).map(value => {
+              const cleaned = normalize(value);
+              return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : "";
+            }).join("")
+          : camelCaseTwoWords(candidate.a.word, b.word))
+      : candidate.name;
   const adjusted = adjustScore(candidate.score, candidate.name, candidate.method, style);
 
   return {
@@ -267,40 +292,62 @@ export function generate(opts: GenOptions): Blend[] {
   if (opts.candidateMode === "dictionary-one") {
     const entries = [...lib]
       .filter(entry =>
-        entry.word.length >= minLen &&
+        entry.word.length >= Math.max(1, minLen - normalize(opts.prefix || "").length) &&
         entry.word.length <= maxLen &&
-        matchesConstraints(entry.word, opts.prefix || "", opts.suffix || "")
+        matchesConstraints(applyAffixes(entry.word, opts.prefix || "", opts.suffix || ""), opts.prefix || "", opts.suffix || "")
       )
       .sort((a, b) => (matches.get(b.word) || 0) - (matches.get(a.word) || 0));
 
     for (const custom of customPool) {
+      const candidateName = applyAffixes(custom.word, opts.prefix || "", opts.suffix || "");
       if (
-        custom.word.length >= minLen &&
-        custom.word.length <= maxLen &&
-        matchesConstraints(custom.word, opts.prefix || "", opts.suffix || "") &&
+        candidateName.length >= minLen &&
+        candidateName.length <= maxLen &&
+        matchesConstraints(candidateName, opts.prefix || "", opts.suffix || "") &&
         !entries.some(entry => entry.word === custom.word)
       ) {
         entries.unshift(custom);
       }
     }
 
-    const candidates = dictionaryOne(entries, Math.min(count * 3, entries.length), briefTerms);
+    const candidates = dictionaryOne(entries, Math.min(count * 5, entries.length), briefTerms)
+      .map(candidate => ({
+        ...candidate,
+        name: applyAffixes(candidate.name, opts.prefix || "", opts.suffix || ""),
+        method: hasExplicitAffix(opts.prefix || "", opts.suffix || "")
+          ? "user-affix(" + candidate.method + ")"
+          : candidate.method
+      }))
+      .filter(candidate =>
+        candidate.name.length >= minLen &&
+        candidate.name.length <= maxLen &&
+        matchesConstraints(candidate.name, opts.prefix || "", opts.suffix || "")
+      );
 
     return candidates
-      .sort(() => Math.random() - 0.5)
+      .sort((a, b) => b.score - a.score)
       .slice(0, count)
       .map(candidate =>
         dictionaryBlend(
           candidate,
           pick(opts.tlds.length ? opts.tlds : TLDS) || ".com",
           "dictionary-one",
-          opts.style
+          opts.style,
+          opts.prefix || "",
+          opts.suffix || ""
         )
       );
   }
 
   if (opts.candidateMode === "dictionary-two") {
-    const candidates = dictionaryTwo(lib, Math.max(count * 5, 120), briefTerms)
+    const candidates = dictionaryTwo(lib, Math.max(count * 10, 240), briefTerms)
+      .map(candidate => ({
+        ...candidate,
+        name: applyAffixes(candidate.name, opts.prefix || "", opts.suffix || ""),
+        method: hasExplicitAffix(opts.prefix || "", opts.suffix || "")
+          ? "user-affix(" + candidate.method + ")"
+          : candidate.method
+      }))
       .filter(candidate =>
         candidate.name.length >= minLen &&
         candidate.name.length <= maxLen &&
@@ -316,7 +363,9 @@ export function generate(opts: GenOptions): Blend[] {
           candidate,
           pick(opts.tlds.length ? opts.tlds : TLDS) || ".com",
           "dictionary-two",
-          opts.style
+          opts.style,
+          opts.prefix || "",
+          opts.suffix || ""
         )
       );
   }
@@ -346,24 +395,16 @@ export function generate(opts: GenOptions): Blend[] {
         style: opts.style
       });
 
-      const p = normalize(opts.prefix || "");
-      const s = normalize(opts.suffix || "");
       const candidates = [...rawCandidates];
 
-      if (p || s) {
-        for (const candidate of rawCandidates.slice(0, 50)) {
-          const alreadyPrefixed = !p || candidate.name.startsWith(p);
-          const alreadySuffixed = !s || candidate.name.endsWith(s);
-          const name =
-            (alreadyPrefixed ? "" : p) +
-            candidate.name +
-            (alreadySuffixed ? "" : s);
-
+      if (hasExplicitAffix(opts.prefix || "", opts.suffix || "")) {
+        for (const candidate of rawCandidates.slice(0, 80)) {
+          const name = applyAffixes(candidate.name, opts.prefix || "", opts.suffix || "");
           if (!isSafeName(name) || seen.has(name)) continue;
           candidates.push({
             ...candidate,
             name,
-            method: "user-modified(" + candidate.method + ")"
+            method: "user-affix(" + candidate.method + ")"
           });
         }
       }
@@ -373,6 +414,31 @@ export function generate(opts: GenOptions): Blend[] {
         if (!isSafeName(name)) continue;
         if (name.length < minLen || name.length > maxLen || seen.has(name)) continue;
         if (!matchesConstraints(name, opts.prefix || "", opts.suffix || "")) continue;
+
+        const isUserAffixed = candidate.method.startsWith("user-affix(");
+        if (!isUserAffixed && !model.accept({ ...candidate, name }, {
+          a,
+          b,
+          prefix: opts.prefix || "",
+          suffix: opts.suffix || "",
+          briefTerms,
+          style: opts.style
+        })) continue;
+
+        if (isUserAffixed && !model.accept({
+          ...candidate,
+          name: normalize(candidate.name.replace(/^opts.prefix || ""$/,'''))
+        }, {
+          a,
+          b,
+          prefix: opts.prefix || "",
+          suffix: opts.suffix || "",
+          briefTerms,
+          style: opts.style
+        })) {
+          // User affixes wrap an otherwise valid model candidate; reject only if its base candidate is invalid.
+          continue;
+        }
 
         const score = model.score(
           { ...candidate, name },
