@@ -64,29 +64,29 @@ function decode(html) {
 
 function extractDomains(html) {
   const prepared = decode(html)
-    .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
-    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<br\\s*\\/?\s*>/gi, "\n")
-    .replace(/<\\/tr>/gi, "\n")
-    .replace(/<\\/td>/gi, " ")
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<\/td>/gi, " ")
     .replace(/<[^>]+>/g, " ");
 
   const rows = prepared
-    .split(/\\n+/)
-    .map(row => row.replace(/\\s+/g, " ").trim())
+    .split(/\n+/)
+    .map(row => row.replace(/\s+/g, " ").trim())
     .filter(Boolean);
 
   const found = new Set();
 
   for (const row of rows) {
-    const matches = row.match(/\\b[A-Za-z0-9][A-Za-z0-9-]{0,62}(?:\\.[A-Za-z0-9-]{1,63})+\\b/g) || [];
+    const matches = row.match(/\b[A-Za-z0-9][A-Za-z0-9-]{0,62}(?:\.[A-Za-z0-9-]{1,63})+\b/g) || [];
     for (const raw of matches) {
       const value = raw.replace(/^[.]+|[.,;:]+$/g, "");
       const lower = value.toLowerCase();
       const root = lower.split(".")[0];
 
       if (!value.includes(".") || VENDORS.has(root) || STOP.has(root)) continue;
-      if (!/^[a-z0-9-]+(?:\\.[a-z0-9-]+)+$/.test(lower)) continue;
+      if (!/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(lower)) continue;
 
       // Only accept compact domain-like names; reject obvious URLs and source references.
       if (lower.includes("www.") || lower.includes("dnjournal.")) continue;
