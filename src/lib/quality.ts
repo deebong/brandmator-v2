@@ -170,7 +170,7 @@ export function passesNameQuality(value: string): boolean {
     if (!alternating) return false;
   }
   if (shape.clusterPenalty >= 15) return false;
-  if (shape.vowelFlowPenalty >= 5 && shape.syllables > 1) return false;
+  if (shape.vowelFlowPenalty >= 5) return false;
 
   const ending = word.slice(-1);
   if (ending === "q" || ending === "j" || ending === "v") return false;
