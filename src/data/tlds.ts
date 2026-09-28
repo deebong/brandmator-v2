@@ -24,4 +24,8 @@ export const TLD_INFO: Record<string, TldInfo> = {
   ".one": { register: null, renewal: null, source: "Unknown" }
 };
 
-export const TLD_COST_SORT_VALUE = (tld: string) => {\n  const info = TLD_INFO[tld];\n  if (!info || info.register === null || info.renewal === null) return Number.POSITIVE_INFINITY;\n  return (info.register + info.renewal) / 2;\n};
+export const TLD_COST_SORT_VALUE = (tld: string) => {
+  const info = TLD_INFO[tld];
+  if (!info || info.register === null || info.renewal === null) return Number.POSITIVE_INFINITY;
+  return (info.register + info.renewal) / 2;
+};
