@@ -83,6 +83,11 @@ export default function NameCard({
           <p className="mt-1 truncate text-xs text-[var(--muted)]">
             {blend.a} + {blend.b} · {blend.method}
           </p>
+          {blend.rationale.length > 0 && (
+            <p className="mt-1 truncate text-[10px] text-[var(--muted)]">
+              {blend.rationale[0]}
+            </p>
+          )}
         </div>
       </div>
 
