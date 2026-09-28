@@ -289,6 +289,39 @@ export default function App() {
     setGenerationProgress({ phase: "finishing", percent: 100, found: nextResults.length });
   }, [spinning, liteKeywords]);
 
+  const shown = useMemo(
+    () =>
+      (showSaved ? saved : results).filter(
+        item => !query || (item.name + item.tld).toLowerCase().includes(query.toLowerCase())
+      ),
+    [showSaved, saved, results, query]
+  );
+
+  const sortedShown = useMemo(() => sortResults(shown, resultSort), [shown, resultSort]);
+  const pages = Math.max(1, Math.ceil(sortedShown.length / PAGE_SIZE));
+  const current = Math.min(page, pages);
+  const items = sortedShown.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+
+  const savedIds = useMemo(() => new Set(saved.map(item => item.name + item.tld)), [saved]);
+
+  const toggleSave = (blend: Blend) => {
+    const key = blend.name + blend.tld;
+    const willSave = !saved.some(item => item.name + item.tld === key);
+    setSaved(previous =>
+      willSave ? [blend, ...previous] : previous.filter(item => item.name + item.tld !== key)
+    );
+    track("result_save", { domain: key, saved: willSave, model: blend.modelName });
+  };
+
+  const addTld = () => {
+    const tld = tldValid(tldInput);
+    if (tld && !tlds.includes(tld)) {
+      setTlds(previous => [...previous, tld]);
+      track("tld_change", { action: "add", tld });
+    }
+    setTldInput("");
+  };
+
   const setRecipe = (next: RecipeId) => {
     setRecipeId(next);
     track("recipe_change", { recipe: next });
@@ -836,28 +869,4 @@ export default function App() {
       </div>
     </div>
   );
-}  const shown = useMemo(
-    () =>
-      (showSaved ? saved : results).filter(
-        item => !query || (item.name + item.tld).toLowerCase().includes(query.toLowerCase())
-      ),
-    [showSaved, saved, results, query]
-  );
-
-  const sortedShown = useMemo(() => sortResults(shown, resultSort), [shown, resultSort]);
-  const pages = Math.max(1, Math.ceil(sortedShown.length / PAGE_SIZE));
-  const current = Math.min(page, pages);
-  const items = sortedShown.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
-
-  const savedIds = useMemo(() => new Set(saved.map(item => item.name + item.tld)), [saved]);
-
-  const toggleSave = (blend: Blend) => {
-    const key = blend.name + blend.tld;
-    const willSave = !saved.some(item => item.name + item.tld === key);
-    setSaved(previous =>
-      willSave ? [blend, ...previous] : previous.filter(item => item.name + item.tld !== key)
-    );
-    track("result_save", { domain: key, saved: willSave, model: blend.modelName });
-  };
-
-
+}
