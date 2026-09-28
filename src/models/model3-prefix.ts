@@ -12,7 +12,7 @@ export const MODEL_3: NamingModel = {
   family: "prefix",
 
   generate: ({ a, b, prefix }) => {
-    const output = [];
+    const output: import("./contract").ModelCandidate[] = [];
     const seen = new Set<string>();
     const roots = [a.word, b.word];
     const requested = normalize(prefix);
