@@ -1,10 +1,10 @@
 import type { Category, WordEntry, WordSource } from "../data/types";
 import { WORD_LIBRARY, TLDS } from "../data/word-pools";
-import { extractBriefTerms } from "./brief";
+import { analyzeBrief } from "./brief";
+import { adjustScore, type NamingStyleId } from "./style";
 import { getModel, MODEL_REGISTRY } from "../models/registry";
-import type { CandidateFamily, ModelId, ModelScore } from "../models/contract";
+import type { CandidateFamily, ModelId, ModelScore, ModelCandidate } from "../models/contract";
 import { dictionaryOne, dictionaryTwo } from "../models/dictionary";
-import type { ModelCandidate } from "../models/contract";
 import { isSafeName, normalize } from "../models/common";
 
 export type CandidateMode = "models" | "dictionary-one" | "dictionary-two";
@@ -12,6 +12,7 @@ export type CandidateMode = "models" | "dictionary-one" | "dictionary-two";
 export type Blend = {
   id: string;
   name: string;
+  displayName: string;
   a: string;
   b: string;
   method: string;
@@ -30,6 +31,7 @@ export type Blend = {
 export type GenOptions = {
   modelId: ModelId;
   candidateMode?: CandidateMode;
+  style: NamingStyleId;
   categories: Category[];
   sources: WordSource[];
   minLen: number;
@@ -45,77 +47,67 @@ export type GenOptions = {
 
 const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
 
-function weightedPick(items: WordEntry[], briefTerms: string[]) {
+function weightedPick(items: WordEntry[], matches: Map<string, number>) {
   if (!items.length) return null;
+
   const total = items.reduce((sum, entry) => {
-    const briefBoost = briefTerms.includes(entry.word) ? 2.25 : 1;
+    const briefBoost = 1 + ((matches.get(entry.word) || 0) / 100) * 2.4;
     return sum + entry.weight * briefBoost;
   }, 0);
+
   let roll = Math.random() * total;
   for (const entry of items) {
-    roll -= entry.weight * (briefTerms.includes(entry.word) ? 2.25 : 1);
+    const briefBoost = 1 + ((matches.get(entry.word) || 0) / 100) * 2.4;
+    roll -= entry.weight * briefBoost;
     if (roll <= 0) return entry;
   }
+
   return items[items.length - 1];
 }
 
-function library(opts: GenOptions) {
+function library(
+  opts: GenOptions,
+  briefMatches: Map<string, number>,
+  briefCategories: Category[]
+) {
   const sources = new Set(opts.sources);
-  const categories = new Set(opts.categories);
-  return WORD_LIBRARY.filter(
-    entry =>
-      entry.sources.some(source => sources.has(source)) &&
-      (!categories.size || entry.categories.some(category => categories.has(category)))
-  );
+  const categories = new Set([...opts.categories, ...briefCategories]);
+  const matchedWords = new Set(briefMatches.keys());
+
+  return WORD_LIBRARY.filter(entry => {
+    if (!entry.sources.some(source => sources.has(source))) return false;
+    if (!opts.categories.length && !briefCategories.length) return true;
+
+    return (
+      entry.categories.some(category => categories.has(category)) ||
+      matchedWords.has(entry.word)
+    );
+  });
 }
 
 function customEntry(word: string, selected: WordEntry[]): WordEntry {
   const normalized = normalize(word);
+
   return (
     selected.find(entry => entry.word === normalized) || {
       word: normalized,
       categories: ["abstract"],
       sources: [],
-      weight: 0.75
+      weight: 0.9
     }
   );
-}
-
-function applyUserModifiers(
-  candidates: Array<ModelCandidate & { modelId: Exclude<ModelId, "m0">; family: Exclude<CandidateFamily, "blend" | "dictionary"> }>,
-  prefix: string,
-  suffix: string
-) {
-  const p = normalize(prefix);
-  const s = normalize(suffix);
-  if (!p && !s) return candidates;
-
-  const output = [...candidates];
-  const seen = new Set(candidates.map(item => item.name));
-
-  for (const candidate of candidates.slice(0, 50)) {
-    const alreadyPrefixed = !p || candidate.name.startsWith(p);
-    const alreadySuffixed = !s || candidate.name.endsWith(s);
-    const name = (alreadyPrefixed ? "" : p) + candidate.name + (alreadySuffixed ? "" : s);
-    if (!isSafeName(name) || seen.has(name)) continue;
-
-    seen.add(name);
-    output.push({
-      ...candidate,
-      name,
-      method: "user-modified(" + candidate.method + ")"
-    });
-  }
-
-  return output;
 }
 
 function familyKey(name: string) {
   const value = name.toLowerCase();
   const suffixes = ["ify", "ora", "ly", "io", "eo", "ia", "ix", "um", "ra", "z", "x", "r", "y"];
+
   for (const suffix of suffixes) {
-    if (value.length > suffix.length + 3 && value.endsWith(suffix)) return value.slice(0, -suffix.length);
+    if (value.length > suffix.length + 3 && value.endsWith(suffix)) {
+      return value.slice(0, -suffix.length);
+    }
   }
+
   return value.slice(0, Math.min(5, value.length));
 }
 
@@ -133,7 +125,7 @@ function diversify(candidates: Blend[], count: number) {
     const model = candidate.modelId;
     const pair = candidate.a + "|" + candidate.b;
     const familyCap = candidate.family === "dictionary" ? 8 : 4;
-    const modelCap = Math.ceil(count * 0.42);
+    const modelCap = candidate.modelId === "m0" ? count : Math.ceil(count * 0.42);
 
     if ((familyCounts.get(family) || 0) >= familyCap) continue;
     if ((modelCounts.get(model) || 0) >= modelCap) continue;
@@ -146,11 +138,12 @@ function diversify(candidates: Blend[], count: number) {
   }
 
   if (chosen.length < count) {
-    const chosenNames = new Set(chosen.map(item => item.name));
+    const names = new Set(chosen.map(item => item.name));
+
     for (const candidate of ordered) {
       if (chosen.length >= count) break;
-      if (chosenNames.has(candidate.name)) continue;
-      chosenNames.add(candidate.name);
+      if (names.has(candidate.name)) continue;
+      names.add(candidate.name);
       chosen.push(candidate);
     }
   }
@@ -158,26 +151,38 @@ function diversify(candidates: Blend[], count: number) {
   return chosen.slice(0, count);
 }
 
+function camelCaseTwoWords(a: string, b: string) {
+  const cap = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+  return cap(a) + cap(b);
+}
+
 function dictionaryBlend(
   candidate: ReturnType<typeof dictionaryOne>[number] | ReturnType<typeof dictionaryTwo>[number],
   tld: string,
-  mode: CandidateMode
+  mode: CandidateMode,
+  style: NamingStyleId
 ): Blend {
   const b = candidate.b || candidate.a;
-  const modelName = mode === "dictionary-one" ? "Dictionary · One word" : "Dictionary · Two words";
+  const displayName = mode === "dictionary-two" ? camelCaseTwoWords(candidate.a.word, b.word) : candidate.name;
+  const adjusted = adjustScore(candidate.score, candidate.name, candidate.method, style);
+
   return {
     id: candidate.name + "-" + mode,
     name: candidate.name,
+    displayName,
     a: candidate.a.word,
     b: b.word,
     method: candidate.method,
     modelId: "m0",
-    modelName,
+    modelName: mode === "dictionary-one" ? "Dictionary · One word" : "Dictionary · Two words",
     family: "dictionary",
     tld,
-    score: candidate.score,
-    scoreDimensions: candidate.evidence.dimensions,
-    rationale: candidate.evidence.rationale,
+    score: adjusted,
+    scoreDimensions: { ...candidate.evidence.dimensions, stylePreference: adjusted },
+    rationale: [
+      ...candidate.evidence.rationale,
+      mode === "dictionary-two" ? "Displayed in CamelCase; domain remains lowercase" : "Untouched dictionary word"
+    ],
     categories: candidate.evidence.categories,
     sourcesA: candidate.a.sources,
     sourcesB: b.sources
@@ -190,12 +195,16 @@ function buildBlend(
   a: WordEntry,
   b: WordEntry,
   tld: string,
-  score: ModelScore
+  score: ModelScore,
+  style: NamingStyleId
 ): Blend {
   const model = getModel(modelId);
+  const adjusted = adjustScore(score.total, candidate.name, candidate.method, style);
+
   return {
     id: candidate.name + "-" + modelId + "-" + candidate.method,
     name: candidate.name,
+    displayName: candidate.name,
     a: a.word,
     b: b.word,
     method: candidate.method,
@@ -203,8 +212,8 @@ function buildBlend(
     modelName: model.short,
     family: model.family,
     tld,
-    score: score.total,
-    scoreDimensions: score.dimensions,
+    score: adjusted,
+    scoreDimensions: { ...score.dimensions, stylePreference: adjusted },
     rationale: [...(candidate.evidence || []), ...score.rationale],
     categories: [...new Set([...a.categories, ...b.categories])],
     sourcesA: a.sources,
@@ -216,41 +225,58 @@ export function generate(opts: GenOptions): Blend[] {
   const count = Math.max(6, Math.min(120, opts.count));
   const minLen = Math.min(opts.minLen, opts.maxLen);
   const maxLen = Math.max(opts.minLen, opts.maxLen);
-  const lib = library(opts);
-  const briefTerms = extractBriefTerms(opts.brief || "", lib);
+
+  const briefAnalysis = analyzeBrief(opts.brief || "", WORD_LIBRARY);
+  const matches = new Map(briefAnalysis.matches.map(match => [match.word, match.score]));
+
+  const lib = library(opts, matches, briefAnalysis.categories);
+  const briefTerms = briefAnalysis.matches.map(match => match.word);
+
   const aLock = opts.seedA?.trim() ? customEntry(opts.seedA, lib) : null;
   const bLock = opts.seedB?.trim() ? customEntry(opts.seedB, lib) : null;
 
   if (!lib.length && !aLock && !bLock) return [];
 
   if (opts.candidateMode === "dictionary-one") {
-    const entries = [...lib].filter(entry => entry.word.length >= minLen && entry.word.length <= maxLen);
-    if (aLock && aLock.word && !entries.some(entry => entry.word === aLock.word)) entries.unshift(aLock);
+    const entries = [...lib]
+      .filter(entry => entry.word.length >= minLen && entry.word.length <= maxLen)
+      .sort((a, b) => (matches.get(b.word) || 0) - (matches.get(a.word) || 0));
+
+    if (aLock && aLock.word && !entries.some(entry => entry.word === aLock.word)) {
+      entries.unshift(aLock);
+    }
+
     const candidates = dictionaryOne(entries, Math.min(count * 3, entries.length), briefTerms);
+
     return candidates
       .sort(() => Math.random() - 0.5)
       .slice(0, count)
-      .map(candidate => dictionaryBlend(candidate, pick(opts.tlds.length ? opts.tlds : TLDS) || ".com", "dictionary-one"));
+      .map(candidate =>
+        dictionaryBlend(
+          candidate,
+          pick(opts.tlds.length ? opts.tlds : TLDS) || ".com",
+          "dictionary-one",
+          opts.style
+        )
+      );
   }
 
   if (opts.candidateMode === "dictionary-two") {
-    const candidates = dictionaryTwo(lib, Math.max(count * 5, 100), briefTerms)
+    const candidates = dictionaryTwo(lib, Math.max(count * 5, 120), briefTerms)
       .filter(candidate => candidate.name.length >= minLen && candidate.name.length <= maxLen)
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(count * 5, 120));
 
-    const selected: typeof candidates = [];
-    const seen = new Set<string>();
-    for (const candidate of candidates) {
-      if (selected.length >= count) break;
-      const jitter = Math.random();
-      if (jitter < 0.25 && selected.length > Math.floor(count * 0.5)) continue;
-      if (seen.has(candidate.name)) continue;
-      seen.add(candidate.name);
-      selected.push(candidate);
-    }
-    return selected.map(candidate =>
-      dictionaryBlend(candidate, pick(opts.tlds.length ? opts.tlds : TLDS) || ".com", "dictionary-two")
-    );
+    return candidates
+      .slice(0, count)
+      .map(candidate =>
+        dictionaryBlend(
+          candidate,
+          pick(opts.tlds.length ? opts.tlds : TLDS) || ".com",
+          "dictionary-two",
+          opts.style
+        )
+      );
   }
 
   const modelIds: Array<Exclude<ModelId, "m0">> =
@@ -259,11 +285,12 @@ export function generate(opts: GenOptions): Blend[] {
   const pool: Blend[] = [];
   const seen = new Set<string>();
   const targetPool = Math.max(360, count * 6);
-  const maxAttempts = opts.modelId === "m0" ? 2600 : 1800;
+  const maxAttempts = opts.modelId === "m0" ? 2800 : 1900;
 
   for (let attempt = 0; attempt < maxAttempts && pool.length < targetPool; attempt += 1) {
-    const a = aLock || weightedPick(lib, briefTerms);
-    const b = bLock || weightedPick(lib, briefTerms);
+    const a = aLock || weightedPick(lib, matches);
+    const b = bLock || weightedPick(lib, matches);
+
     if (!a || !b || a.word === b.word) continue;
 
     for (const modelId of modelIds) {
@@ -273,28 +300,64 @@ export function generate(opts: GenOptions): Blend[] {
         b,
         prefix: opts.prefix || "",
         suffix: opts.suffix || "",
-        briefTerms
+        briefTerms,
+        style: opts.style
       });
 
-      const modified = applyUserModifiers(
-        rawCandidates.map(candidate => ({ ...candidate, modelId, family: model.family })),
-        opts.prefix || "",
-        opts.suffix || ""
-      );
+      const p = normalize(opts.prefix || "");
+      const s = normalize(opts.suffix || "");
+      const candidates = [...rawCandidates];
 
-      for (const candidate of modified) {
+      if (p || s) {
+        for (const candidate of rawCandidates.slice(0, 50)) {
+          const alreadyPrefixed = !p || candidate.name.startsWith(p);
+          const alreadySuffixed = !s || candidate.name.endsWith(s);
+          const name =
+            (alreadyPrefixed ? "" : p) +
+            candidate.name +
+            (alreadySuffixed ? "" : s);
+
+          if (!isSafeName(name) || seen.has(name)) continue;
+          candidates.push({
+            ...candidate,
+            name,
+            method: "user-modified(" + candidate.method + ")"
+          });
+        }
+      }
+
+      for (const candidate of candidates) {
         const name = normalize(candidate.name);
         if (!isSafeName(name)) continue;
         if (name.length < minLen || name.length > maxLen || seen.has(name)) continue;
 
-        const normalizedCandidate = { ...candidate, name };
-        const score = model.score(normalizedCandidate, { a, b, prefix: opts.prefix || "", suffix: opts.suffix || "", briefTerms });
-        const floor = modelId === "m3" ? 48 : modelId === "m5" ? 45 : 50;
+        const score = model.score(
+          { ...candidate, name },
+          {
+            a,
+            b,
+            prefix: opts.prefix || "",
+            suffix: opts.suffix || "",
+            briefTerms,
+            style: opts.style
+          }
+        );
+
+        const floor = modelId === "m3" ? 42 : modelId === "m5" ? 40 : 44;
         if (score.total < floor) continue;
 
-        const tld = pick(opts.tlds.length ? opts.tlds : TLDS) || ".com";
+        const adjusted = buildBlend(
+          { ...candidate, name },
+          modelId,
+          a,
+          b,
+          pick(opts.tlds.length ? opts.tlds : TLDS) || ".com",
+          score,
+          opts.style
+        );
+
         seen.add(name);
-        pool.push(buildBlend(normalizedCandidate, modelId, a, b, tld, score));
+        pool.push(adjusted);
 
         if (pool.length >= targetPool) break;
       }
