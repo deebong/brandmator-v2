@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://deebong.github.io/brandmator-v2/sitemap.xml

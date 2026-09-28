@@ -1,0 +1,9 @@
+import type { WordEntry } from "../data/types";
+const VOWELS="aeiouy";
+const BAD=["fuck","shit","porn","rape","nazi","suicide","terror"];
+const vr=(w:string)=>[...w].filter(c=>VOWELS.includes(c)).length/Math.max(1,w.length);
+const transition=(w:string)=>{let n=0;for(let i=1;i<w.length;i++)if(VOWELS.includes(w[i])!==VOWELS.includes(w[i-1]))n++;return Math.round(n/Math.max(1,w.length-1)*10)};
+export type ScoreBreakdown={length:number;vowels:number;phonetics:number;sourceSignals:number;categoryFit:number;method:number;riskPenalty:number;total:number};
+const srcBoost=(e:WordEntry)=>Math.min(10,Math.round((e.sources.length-1)*2+Math.min(e.weight,5)*.65));
+const catBoost=(a:WordEntry,b:WordEntry)=>Math.min(7,a.categories.filter(c=>b.categories.includes(c)).length*2);
+export function scoreName(name:string,a:WordEntry,b:WordEntry,method:string):ScoreBreakdown{const w=name.toLowerCase();let length=w.length>=5&&w.length<=9?18:w.length===4||w.length===10?8:w.length===11?2:-8;const r=vr(w);const vowels=r>=.3&&r<=.55?12:r>=.24&&r<=.62?4:-10;let phonetics=transition(w);if(/[bcdfghjklmnpqrstvwxz]{4,}/.test(w))phonetics-=16;if(/(.)\1\1/.test(w))phonetics-=10;if(/(qu|xy|xq|qz|jv|jq)/.test(w))phonetics-=6;if(/^[aeiou]/.test(w))phonetics+=2;if(/(a|e|i|o|u|y|ia|io|ly|ra|la|na)$/.test(w))phonetics+=4;phonetics=Math.max(-10,Math.min(18,phonetics));const sourceSignals=Math.min(14,srcBoost(a)+srcBoost(b));const categoryFit=catBoost(a,b);const methodBonus=method.includes("overlap")?8:method.includes("head+tail")||method.includes("tail+head")?6:method.includes("clip+clip")?5:method.includes("vowel-bridge")?4:method.includes("head+word")||method.includes("word+tail")?2:0;const riskPenalty=BAD.some(x=>w.includes(x))?-35:0;const total=Math.max(1,Math.min(99,Math.round(38+length+vowels+phonetics+sourceSignals+categoryFit+methodBonus+riskPenalty)));return{length,vowels,phonetics,sourceSignals,categoryFit,method:methodBonus,riskPenalty,total}}
