@@ -512,7 +512,7 @@ export default function App() {
                   <input
                     value={seedWordsInput}
                     onChange={event => setSeedWordsInput(event.target.value)}
-                    placeholder="forest, conserve"
+                    placeholder="e.g. nova, flow"
                     className={inputClass()}
                   />
                   <span className="mt-1 block text-[10px] text-[var(--muted)]">Separate multiple words with commas.</span>

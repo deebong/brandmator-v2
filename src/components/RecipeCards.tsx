@@ -9,8 +9,10 @@ export default function RecipeCards({
   value: Recipe["id"];
   onChange: (value: Recipe["id"]) => void;
 }) {
+  const columns = recipes.length >= 4 ? "lg:grid-cols-4" : recipes.length === 3 ? "lg:grid-cols-3" : recipes.length === 2 ? "lg:grid-cols-2" : "lg:grid-cols-1";
+
   return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <div className={"grid gap-2 sm:grid-cols-2 " + columns}>
       {recipes.map(recipe => {
         const active = value === recipe.id;
         return (
