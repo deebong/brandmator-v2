@@ -12,7 +12,7 @@ export const MODEL_2: NamingModel = {
   family: "spelling",
 
   generate: ({ a, b }) => {
-    const output = [];
+    const output: import("./contract").ModelCandidate[] = [];
     const seen = new Set<string>();
     for (const entry of [a, b]) {
       for (const variant of creativeWordVariants(entry)) {
