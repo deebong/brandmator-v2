@@ -156,6 +156,9 @@ export function passesNameQuality(value: string): boolean {
   if (/(.)\1\1/.test(word)) return false;
 
   const shape = analyzeNameShape(word);
+  const initialCluster = runs(word, false)[0] || "";
+  if (initialCluster.length === 2 && !COMMON_CONSONANT_CLUSTERS.has(initialCluster)) return false;
+
   const compactMonosyllable =
     shape.syllables === 1 &&
     shape.vowelRatio >= 0.16 &&
