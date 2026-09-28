@@ -2,6 +2,10 @@ name: Refresh DNJournal naming intelligence
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "scripts/update-dnjournal-sales.mjs"
+      - ".github/workflows/refresh-dnjournal.yml"
   schedule:
     - cron: "30 3 * * 1"
 
