@@ -274,7 +274,7 @@ export default function App() {
         maxLen: 12,
         count: 120,
         seedWords: keywords,
-        brief: keywords.join(" "),
+        brief: "",
         tlds: [".com"],
         lite: true,
         excludeNames: [...liteUsedNamesRef.current]
