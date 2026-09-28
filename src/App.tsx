@@ -123,6 +123,14 @@ function inputClass() {
   return "mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 text-sm outline-none placeholder:text-[var(--muted)] focus:border-indigo-400";
 }
 
+function toggle<T>(items: T[], value: T, setter: React.Dispatch<React.SetStateAction<T[]>>) {
+  setter(previous =>
+    previous.includes(value)
+      ? previous.filter(item => item !== value)
+      : [...previous, value]
+  );
+}
+
 export default function App() {
   const [interfaceMode, setInterfaceMode] = useState<"lite" | "full">("lite");
   const [recipeId, setRecipeId] = useState<RecipeId>("surprise");
