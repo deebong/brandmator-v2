@@ -42,16 +42,21 @@ export function dictionaryOne(entries: WordEntry[], count: number, briefTerms: s
     }))
     .sort((a, b) => b.score - a.score);
 
-  return ranked.slice(0, count).map(item => ({
-    ...item,
-    evidence: {
+  return ranked.slice(0, count).map(item => {
+    const evidence: GeneratedEvidence = {
       modelScore: item.score,
-      dimensions: { length: lengthFit(item.name), sourceSignal: sourceSignal(item.a, item.a, briefTerms), briefFit: briefFit(item.a, item.a, briefTerms) },
+      dimensions: {
+        length: lengthFit(item.name),
+        sourceSignal: sourceSignal(item.a, item.a, briefTerms),
+        briefFit: briefFit(item.a, item.a, briefTerms)
+      },
       rationale: ["Pure dictionary word", "No fusion or spelling transformation"],
       sourceWords: [item.a.word, item.a.word],
       categories: item.a.categories
-    }
-  }));
+    };
+
+    return { ...item, evidence };
+  });
 }
 
 export function dictionaryTwo(entries: WordEntry[], count: number, briefTerms: string[]) {
