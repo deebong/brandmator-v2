@@ -425,7 +425,7 @@ export default function App() {
                     value={style}
                     onChange={value => {
                       setStyle(value as NamingStyleId);
-                      track("model_change", { style: value });
+                      track("style_change", { style: value });
                     }}
                     ariaLabel="Naming style"
                     options={NAMING_STYLES.map(item => ({ value: item.id, label: item.name, description: item.description }))}
