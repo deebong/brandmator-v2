@@ -1,0 +1,46 @@
+name: Refresh DNJournal naming intelligence
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/update-dnjournal-sales.mjs"
+      - ".github/workflows/refresh-dnjournal.yml"
+  schedule:
+    - cron: "30 3 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Scrape DNJournal annual and YTD charts
+        run: node scripts/update-dnjournal-sales.mjs
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet -- src/data/word-pools/dnjournal-live.ts; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit refreshed library
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/word-pools/dnjournal-live.ts
+          git commit -m "Refresh DNJournal naming intelligence"
+          git push

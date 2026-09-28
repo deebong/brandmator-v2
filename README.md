@@ -59,7 +59,7 @@ The internal model architecture remains available through the recipe layer and d
 ## User controls
 
 - Naming recipes: Surprise me, Invented words, Creative spelling, Prefix & initials, Meaningful names, Wild ideas, Real word, Two real words
-- Lite mode: 120 mixed names, 5-12 letters
+- Lite mode: 120 mixed names, 5-12 letters, broad exploration and fresh-batch history
 - Full mode: up to 1,000 results
 - Name feel preferences
 - Brand brief with local concept matching and inferred topics

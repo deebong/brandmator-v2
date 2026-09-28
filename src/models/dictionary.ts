@@ -16,7 +16,7 @@ function scoreOne(word: WordEntry, briefTerms: string[]) {
     [lengthFit(word.word), 28],
     [sourceSignal(word, word, briefTerms), 24],
     [briefFit(word, word, briefTerms), 22],
-    [word.sources.includes("popular") ? 92 : 72, 16],
+    [word.sources.includes("top") || word.sources.includes("popular") ? 92 : 72, 16],
     [word.categories.length > 1 ? 84 : 68, 10]
   ]);
 }
@@ -27,7 +27,7 @@ function scoreTwo(a: WordEntry, b: WordEntry, briefTerms: string[]) {
     [sourceSignal(a, b, briefTerms), 22],
     [briefFit(a, b, briefTerms), 20],
     [categoryFit(a, b), 16],
-    [a.sources.includes("popular") || b.sources.includes("popular") ? 86 : 70, 10],
+    [a.sources.includes("top") || b.sources.includes("top") || a.sources.includes("popular") || b.sources.includes("popular") ? 86 : 70, 10],
     [a.categories.filter(category => b.categories.includes(category)).length ? 90 : 65, 8]
   ]);
 }
