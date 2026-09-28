@@ -38,7 +38,7 @@ const SOURCE_PRESETS: Array<{ value: SourcePreset; label: string; description: s
     value: "current",
     label: "Current signals",
     description: "Top + trending vocabulary.",
-    sources: ["core", "popular", "trending"]
+    sources: ["core", "top", "trending"]
   },
   {
     value: "startup",
@@ -49,14 +49,14 @@ const SOURCE_PRESETS: Array<{ value: SourcePreset; label: string; description: s
   {
     value: "sales",
     label: "Sales-led",
-    description: "Reported sales signals with popular/trending vocabulary.",
+    description: "Reported sales signals with top/trending vocabulary.",
     sources: ["top", "trending", "sales"]
   },
   {
     value: "custom",
     label: "Choose sources",
     description: "Pick the exact pools yourself.",
-    sources: ["core", "popular", "trending", "company", "sales"]
+    sources: ["core", "top", "trending", "company", "sales"]
   }
 ];
 
@@ -851,7 +851,7 @@ export default function App() {
           </article>
           <article id="data-sources" className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5">
             <h3 className="font-semibold">Data sources</h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{stats.total} starter words currently come from isolated core, popular, trending, company and reported sales-signal pools. More data sources can be added without changing the model contract.</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{stats.total} starter words currently come from isolated core, top, trending, company and reported sales-signal pools. More data sources can be added without changing the model contract.</p>
           </article>
         </section>
 
