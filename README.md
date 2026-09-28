@@ -36,24 +36,35 @@ Dictionary generation is provided separately for pure one-word and pure two-word
 
 ## User flow
 
-The public UI is task-first:
+### Lite mode
+The default first-time flow is intentionally simple:
 
-1. Describe the brand
-2. Choose a naming recipe
-3. Choose an optional name feel
-4. Add optional words / starts-with / ends-with constraints
-5. Generate
-6. Open "Fine-tune" only when deeper vocabulary, length or domain controls are needed
+1. Enter one or more keywords
+2. Generate
+3. Review 120 mixed candidates between 5 and 12 letters
+
+Lite mode uses Model 0 internally with the full word-intelligence layer and does not require model/source/topic/TLD decisions.
+
+### Full mode
+For deeper control:
+
+1. Choose a naming recipe
+2. Choose an optional name feel
+3. Add optional words / starts-with / ends-with constraints
+4. Generate
+5. Fine-tune vocabulary, length, result count and domains when needed
 
 The internal model architecture remains available through the recipe layer and developer registry without requiring users to understand model numbers.
 
 ## User controls
 
 - Naming recipes: Surprise me, Invented words, Creative spelling, Prefix & initials, Meaningful names, Wild ideas, Real word, Two real words
+- Lite mode: 120 mixed names, 5-12 letters
+- Full mode: up to 1,000 results
 - Name feel preferences
 - Brand brief with local concept matching and inferred topics
 - Words to include
-- Starts with / Ends with hard output constraints
+- Starts with / Ends with hard output constraints; multiple prefixes and suffixes are supported
 - Topic focus and vocabulary source presets
 - Name-length range
 - Result count
