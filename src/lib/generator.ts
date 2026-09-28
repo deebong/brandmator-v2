@@ -495,7 +495,7 @@ export async function generateAsync(
         modelScore: 72,
         dimensions: {},
         rationale: ["Dictionary source"],
-        sourceWords: [entry.word, entry.word],
+        sourceWords: [entry.word, entry.word] as [string, string],
         categories: entry.categories
       };
 
