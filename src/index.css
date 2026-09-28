@@ -36,6 +36,8 @@
 
 html{scroll-behavior:smooth}
 body{min-width:320px;margin:0;background:var(--bg)}
+.styled-select-menu{scrollbar-width:none;-ms-overflow-style:none}
+.styled-select-menu::-webkit-scrollbar{width:0;height:0;display:none}
 
 .brand-wordmark{
   display:block;
