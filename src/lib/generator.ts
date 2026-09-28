@@ -124,6 +124,28 @@ function hasExplicitAffix(prefix: string, suffix: string) {
   return Boolean(normalize(prefix) || normalize(suffix));
 }
 
+function userAnchorEntries(customPool: WordEntry[], lib: WordEntry[]) {
+  if (!customPool.length) return [];
+  const seen = new Set<string>();
+  const entries: WordEntry[] = [];
+
+  for (const entry of customPool) {
+    if (!entry.word || seen.has(entry.word)) continue;
+    seen.add(entry.word);
+    entries.push(entry);
+  }
+
+  // Keep a useful pool of non-user words for pairing.
+  for (const entry of lib) {
+    if (entries.length >= 120) break;
+    if (seen.has(entry.word)) continue;
+    seen.add(entry.word);
+    entries.push(entry);
+  }
+
+  return entries;
+}
+
 function familyKey(name: string) {
   const value = name.toLowerCase();
   const suffixes = ["ify", "ora", "ly", "io", "eo", "ia", "ix", "um", "ra", "z", "x", "r", "y"];
@@ -137,15 +159,16 @@ function familyKey(name: string) {
   return value.slice(0, Math.min(5, value.length));
 }
 
-function diversify(candidates: Blend[], count: number) {
+function diversify(candidates: Blend[], count: number, anchors: WordEntry[] = []) {
   const ordered = [...candidates].sort((a, b) => b.score - a.score);
   const familyCounts = new Map<string, number>();
   const modelCounts = new Map<string, number>();
   const pairCounts = new Map<string, number>();
   const chosen: Blend[] = [];
+  const chosenNames = new Set<string>();
 
-  for (const candidate of ordered) {
-    if (chosen.length >= count) break;
+  const addCandidate = (candidate: Blend) => {
+    if (chosen.length >= count || chosenNames.has(candidate.name)) return false;
 
     const family = familyKey(candidate.name);
     const model = candidate.modelId;
@@ -153,23 +176,36 @@ function diversify(candidates: Blend[], count: number) {
     const familyCap = candidate.family === "dictionary" ? 8 : 4;
     const modelCap = candidate.modelId === "m0" ? count : Math.ceil(count * 0.42);
 
-    if ((familyCounts.get(family) || 0) >= familyCap) continue;
-    if ((modelCounts.get(model) || 0) >= modelCap) continue;
-    if ((pairCounts.get(pair) || 0) >= 4) continue;
+    if ((familyCounts.get(family) || 0) >= familyCap) return false;
+    if ((modelCounts.get(model) || 0) >= modelCap) return false;
+    if ((pairCounts.get(pair) || 0) >= 4) return false;
 
     familyCounts.set(family, (familyCounts.get(family) || 0) + 1);
     modelCounts.set(model, (modelCounts.get(model) || 0) + 1);
     pairCounts.set(pair, (pairCounts.get(pair) || 0) + 1);
+    chosenNames.add(candidate.name);
     chosen.push(candidate);
+    return true;
+  };
+
+  // Preserve explicit user-word coverage before general score-based diversification.
+  for (const anchor of anchors) {
+    const match = ordered.find(candidate =>
+      candidate.a === anchor.word || candidate.b === anchor.word
+    );
+    if (match) addCandidate(match);
+  }
+
+  for (const candidate of ordered) {
+    if (chosen.length >= count) break;
+    addCandidate(candidate);
   }
 
   if (chosen.length < count) {
-    const names = new Set(chosen.map(item => item.name));
-
     for (const candidate of ordered) {
       if (chosen.length >= count) break;
-      if (names.has(candidate.name)) continue;
-      names.add(candidate.name);
+      if (chosenNames.has(candidate.name)) continue;
+      chosenNames.add(candidate.name);
       chosen.push(candidate);
     }
   }
@@ -285,7 +321,9 @@ export function generate(opts: GenOptions): Blend[] {
       ? customPool[1]
       : null;
 
-  const selectionPool = customPool.length > 1 ? customPool : lib;
+  // User-entered words are anchors, not merely weighted suggestions.
+  // The library remains available so anchored words can be paired with fresh vocabulary.
+  const selectionPool = lib.length ? lib : customPool;
 
   if (!lib.length && !customPool.length && !aLock && !bLock) return [];
 
@@ -340,7 +378,11 @@ export function generate(opts: GenOptions): Blend[] {
   }
 
   if (opts.candidateMode === "dictionary-two") {
-    const candidates = dictionaryTwo(lib, Math.max(count * 10, 240), briefTerms)
+    const dictionaryEntries = userAnchorEntries(customPool, lib);
+    const candidates = dictionaryTwo(dictionaryEntries, Math.max(count * 12, 300))
+      .filter(candidate => customPool.length === 0 || customPool.some(anchor =>
+        candidate.a.word === anchor.word || candidate.b?.word === anchor.word
+      ))
       .map(candidate => ({
         ...candidate,
         name: applyAffixes(candidate.name, opts.prefix || "", opts.suffix || ""),
@@ -377,10 +419,20 @@ export function generate(opts: GenOptions): Blend[] {
   const seen = new Set<string>();
   const targetPool = Math.max(360, count * 6);
   const maxAttempts = opts.modelId === "m0" ? 2800 : 1900;
+  const anchors = customPool.length ? customPool : [];
+  const partnerPool = selectionPool.length ? selectionPool : customPool;
 
   for (let attempt = 0; attempt < maxAttempts && pool.length < targetPool; attempt += 1) {
-    const a = aLock || weightedPick(selectionPool, matches);
-    const b = bLock || weightedPick(selectionPool, matches);
+    const anchor = anchors.length
+      ? anchors[attempt % anchors.length]
+      : null;
+
+    const a = aLock || anchor || weightedPick(partnerPool, matches);
+    const b = bLock || (
+      anchor
+        ? weightedPick(partnerPool.filter(entry => entry.word !== anchor.word), matches)
+        : weightedPick(partnerPool, matches)
+    );
 
     if (!a || !b || a.word === b.word) continue;
 
@@ -418,6 +470,7 @@ export function generate(opts: GenOptions): Blend[] {
       for (const candidate of candidates) {
         const name = normalize(candidate.name);
         if (!isSafeName(name)) continue;
+        if (anchors.length && !anchors.some(anchor => anchor.word === a.word || anchor.word === b.word)) continue;
         if (name.length < minLen || name.length > maxLen || seen.has(name)) continue;
         if (!matchesConstraints(name, opts.prefix || "", opts.suffix || "")) continue;
 
@@ -466,7 +519,7 @@ export function generate(opts: GenOptions): Blend[] {
     }
   }
 
-  return diversify(pool, count);
+  return diversify(pool, count, customPool);
 }
 
 export const title = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
