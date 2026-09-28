@@ -77,7 +77,7 @@ export default function StyledSelect({
         <div
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute z-50 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--dropdown)] p-1.5 shadow-2xl shadow-black/15 backdrop-blur-xl"
+          className="styled-select-menu absolute z-50 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--dropdown)] p-1.5 shadow-2xl shadow-black/15 backdrop-blur-xl"
         >
           {options.map(option => {
             const active = option.value === value;
