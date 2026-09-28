@@ -456,8 +456,8 @@ export async function generateAsync(
       const rawCandidates = model.generate({
         a,
         b,
-        prefix: prefixes.join(" "),
-        suffix: suffixes.join(" "),
+        prefix: prefixes.length === 1 ? prefixes[0] : "",
+        suffix: suffixes.length === 1 ? suffixes[0] : "",
         briefTerms,
         style: opts.style
       });
@@ -474,8 +474,8 @@ export async function generateAsync(
           if (!model.accept({ ...rawCandidate, name: baseName }, {
             a,
             b,
-            prefix: prefixes.join(" "),
-            suffix: suffixes.join(" "),
+            prefix: prefixes.length === 1 ? prefixes[0] : "",
+            suffix: suffixes.length === 1 ? suffixes[0] : "",
             briefTerms,
             style: opts.style
           })) continue;
