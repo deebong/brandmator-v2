@@ -14,7 +14,7 @@ export const MODEL_5: NamingModel = {
   family: "experimental",
 
   generate: ({ a, b, prefix, suffix }) => {
-    const output = [];
+    const output: import("./contract").ModelCandidate[] = [];
     const seen = new Set<string>();
     const roots = [a.word, b.word, ...fusePair(a.word, b.word).map(v => v.name), ...fusePair(b.word, a.word).map(v => v.name)];
 
