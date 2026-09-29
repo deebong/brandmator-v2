@@ -83,7 +83,10 @@ export default function StyledSelect({
         <div
           role="listbox"
           aria-label={ariaLabel}
-          className="styled-select-menu absolute z-50 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--dropdown)] p-1.5 shadow-2xl shadow-black/15 backdrop-blur-xl"
+          className={
+            "styled-select-menu absolute z-50 mt-2 max-h-72 overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--dropdown)] p-1.5 shadow-2xl shadow-black/15 backdrop-blur-xl " +
+            (minimal ? "w-max min-w-full max-w-[calc(100vw-1rem)]" : "w-full")
+          }
         >
           {options.map(option => {
             const active = option.value === value;
@@ -121,8 +124,8 @@ export default function StyledSelect({
                     )}
                   </span>
                 )}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{option.label}</span>
+                <span className={"min-w-0 flex-1 " + (minimal ? "whitespace-nowrap" : "")}>
+                  <span className={"block text-sm font-medium " + (minimal ? "whitespace-nowrap" : "truncate")}>{option.label}</span>
                   {!minimal && option.description && (
                     <span className="mt-0.5 block truncate text-[11px] text-[var(--muted)]">
                       {option.description}
