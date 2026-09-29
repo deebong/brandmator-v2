@@ -565,7 +565,7 @@ export default function App() {
 
               {recipeId === "dictionary-one" && seedWordsInput.trim() && (
                 <p className="mt-3 rounded-xl border border-cyan-200/50 bg-cyan-500/5 px-3 py-2 text-xs text-[var(--muted)]">
-                  With Words to include, each entered dictionary word can be paired with a pure dictionary partner in either order, such as task + flow or flow + task.
+                  Words to include acts as an exact anchor: in One word mode, every generated compound keeps your word intact, either before or after a pure dictionary partner (for example taskflow or flowtask).
                 </p>
               )}
 
@@ -611,7 +611,7 @@ export default function App() {
                   <span className="text-[10px] text-[var(--muted)]">
                     {recipeId === "dictionary-two"
                       ? "Two untouched words; displayed in CamelCase."
-                      : "One untouched dictionary word."}
+                      : "One word; your included word stays intact inside every anchored result."}
                   </span>
                 </div>
               )}
@@ -821,9 +821,11 @@ export default function App() {
                   setPage(1);
                 }}
                 ariaLabel="Results per page"
-                options={RESULT_PAGE_SIZES.map(value => ({ value: String(value), label: `View ${value}` }))}
+                options={RESULT_PAGE_SIZES.map(value => ({ value: String(value), label: String(value) }))}
+                triggerPrefix="Show"
+                minimal
                 compact
-                className="w-32"
+                className="w-24"
               />
               <StyledSelect
                 value={resultSort}
@@ -834,8 +836,10 @@ export default function App() {
                 }}
                 ariaLabel="Sort generated names"
                 options={RESULT_SORTS.map(option => ({ value: option.value, label: option.label }))}
+                triggerPrefix="Sort by"
+                minimal
                 compact
-                className="w-44"
+                className="w-36"
               />
               {pages > 1 && <span className="text-xs text-[var(--muted)]">{pages} pages</span>}
             </div>
