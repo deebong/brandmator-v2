@@ -1,4 +1,4 @@
-import type { WordKind } from "../types";
+import type { WordKind } from "./types";
 
 const FORCE_BRANDABLE = new Set([
   "tapzz",
@@ -29,11 +29,7 @@ const PURE_SHORT_WORDS = new Set([
   "key","lab","llm","map","ml","net","pet","pro","sun","tax","web","work","you"
 ]);
 
-const COMMON_CONSONANT_CLUSTERS = new Set([
-  "bl","br","ch","cl","cr","dr","fl","fr","gl","gr","pl","pr","sc","sh","sk","sl","sm",
-  "sn","sp","st","sw","th","tr","tw","wh","wr",
-  "str","spr","spl","scr","shr","sch","squ","thr"
-]);
+
 
 function hasUnusualEnding(word: string) {
   const endings = [
