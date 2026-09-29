@@ -524,10 +524,23 @@ export async function generateAsync(
       );
     };
 
-    const anchors = customPool.filter(entry => entry.kind === "dictionary");
+    // Explicit Words to include are authoritative anchors in this mode.
+    // Resolve them against the pure dictionary library first so source/category
+    // filtering cannot silently turn a real user word into a brandable entry.
+    // A user-supplied word is preserved verbatim even when it is not present
+    // in the currently filtered library; the partner remains pure dictionary.
+    const anchors = exactWords.map(word =>
+      PURE_DICTIONARY_LIBRARY.find(entry => entry.word === word) || {
+        word,
+        categories: ["abstract"] as Category[],
+        sources: [] as WordSource[],
+        weight: 1.1,
+        kind: "dictionary" as const
+      }
+    );
 
     if (anchors.length) {
-      // Explicit user words are always represented where the length constraints allow.
+      // Preserve the exact user anchor itself when it satisfies the length/constraint rules.
       for (const anchor of anchors) {
         const rootNames = applyAffixVariants(anchor.word, prefixes, suffixes);
         for (const rootName of rootNames) {
