@@ -9,7 +9,7 @@ export default function StyledSelect({
   ariaLabel,
   className = "",
   compact = false,
-  triggerPrefix = "",
+  triggerLabel = "",
   minimal = false
 }: {
   value: string;
@@ -18,7 +18,7 @@ export default function StyledSelect({
   ariaLabel: string;
   className?: string;
   compact?: boolean;
-  triggerPrefix?: string;
+  triggerLabel?: string;
   minimal?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -64,7 +64,7 @@ export default function StyledSelect({
         }
       >
         <span className="min-w-0 flex-1 truncate">
-          {triggerPrefix ? triggerPrefix + " " + (selected?.label || "") : selected?.label}
+          {triggerLabel || selected?.label}
         </span>
         <span
           className={
