@@ -1,4 +1,5 @@
 import type { Category, WordEntry, WordSeed, WordSource } from "../types";
+import { classifyWord } from "../word-classifier";
 import { CORE_WORDS } from "./core";
 import { CORE_EXTENDED_WORDS } from "./core-extended";
 import { POPULAR_WORDS } from "./popular";
@@ -20,9 +21,16 @@ export const SOURCE_META: Record<WordSource,{label:string;short:string;weight:nu
 core:{label:"Core library",short:"Core",weight:.85},top:{label:"Top brand vocabulary",short:"Top",weight:1.05},popular:{label:"Popular vocabulary",short:"Popular",weight:1},trending:{label:"Trending signals",short:"Trending",weight:1.15},company:{label:"Company vocabulary",short:"Company",weight:1.05},sales:{label:"Domain-sale vocabulary",short:"Sales",weight:1.2}
 };
 const POOLS:[WordSource,WordSeed[]][] = [["core",[...CORE_WORDS,...CORE_EXTENDED_WORDS]],["top",[...TOP_WORDS,...TOP_EXTENDED_WORDS]],["popular",POPULAR_WORDS],["trending",[...TRENDING_WORDS,...TRENDING_EXTENDED_WORDS]],["company",[...COMPANY_WORDS,...COMPANY_EXTENDED_WORDS]],["sales",[...SALES_WORDS,...SALES_EXTENDED_WORDS,...DNJOURNAL_WORDS,...DNJOURNAL_LIVE_WORDS]]];
-function mergeEntries():WordEntry[]{const map=new Map<string,WordEntry>();for(const [source,seeds] of POOLS){for(const [rawWord,categories] of seeds){const word=rawWord.toLowerCase().replace(/[^a-z]/g,"");if(!word||word.length<2)continue;const e=map.get(word);if(!e){map.set(word,{word,categories:[...new Set(categories)],sources:[source],weight:SOURCE_META[source].weight});}else{e.categories=[...new Set([...e.categories,...categories])];if(!e.sources.includes(source))e.sources.push(source);e.weight+=SOURCE_META[source].weight;}}}return [...map.values()]}
+function mergeEntries():WordEntry[]{const map=new Map<string,WordEntry>();for(const [source,seeds] of POOLS){for(const [rawWord,categories] of seeds){const word=rawWord.toLowerCase().replace(/[^a-z]/g,"");if(!word||word.length<2)continue;const e=map.get(word);if(!e){map.set(word,{word,categories:[...new Set(categories)],sources:[source],weight:SOURCE_META[source].weight,kind:classifyWord(word)});}else{e.categories=[...new Set([...e.categories,...categories])];if(!e.sources.includes(source))e.sources.push(source);e.weight+=SOURCE_META[source].weight;e.kind=classifyWord(e.word);}}}return [...map.values()]}
 export const WORD_LIBRARY=mergeEntries();
+export const PURE_DICTIONARY_LIBRARY=WORD_LIBRARY.filter(entry => entry.kind === "dictionary");
+export const BRANDABLE_LIBRARY=WORD_LIBRARY.filter(entry => entry.kind === "brandable");
 export const CATEGORY_NAMES=Object.keys(CATEGORY_META) as Category[];
 export const SOURCE_NAMES=["core","top","trending","company","sales"] as WordSource[];
 export const TLDS=[".com",".ai",".io",".co",".app",".dev",".tech",".cloud",".xyz",".me",".org",".net",".studio",".store",".shop",".one"];
-export function getLibraryStats(){const bySource=Object.fromEntries(SOURCE_NAMES.map(source=>[source,WORD_LIBRARY.filter(w=>w.sources.includes(source)).length])) as Record<WordSource,number>;return{total:WORD_LIBRARY.length,bySource};}
+export function getLibraryStats(){const bySource=Object.fromEntries(SOURCE_NAMES.map(source=>[source,WORD_LIBRARY.filter(w=>w.sources.includes(source)).length])) as Record<WordSource,number>;return{
+  total:WORD_LIBRARY.length,
+  pureDictionary:PURE_DICTIONARY_LIBRARY.length,
+  brandable:BRANDABLE_LIBRARY.length,
+  bySource
+};}
