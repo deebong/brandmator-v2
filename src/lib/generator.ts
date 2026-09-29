@@ -1,5 +1,5 @@
 import type { Category, WordEntry, WordSource } from "../data/types";
-import { WORD_LIBRARY, TLDS } from "../data/word-pools";
+import { WORD_LIBRARY, PURE_DICTIONARY_LIBRARY, TLDS } from "../data/word-pools";
 import { analyzeBrief } from "./brief";
 import { adjustScore, type NamingStyleId } from "./style";
 import { getModel, MODEL_REGISTRY } from "../models/registry";
@@ -478,13 +478,20 @@ export async function generateAsync(
     // Real word mode is intentionally literal:
     // take an untouched dictionary word and optionally attach the user's prefix/suffix.
     // No spelling alterations, fusion, clipping or creative variants are allowed here.
-    const entries = [...selectionPool]
+    const dictionaryPool = PURE_DICTIONARY_LIBRARY.filter(entry => {
+      if (!entry.sources.length) return true;
+      return entry.sources.some(source => opts.sources.includes(source));
+    });
+
+    const entries = [...dictionaryPool.length ? dictionaryPool : PURE_DICTIONARY_LIBRARY]
       .filter(entry => entry.word.length + prefixes.reduce((n, p) => n + p.length, 0) + suffixes.reduce((n, s) => n + s.length, 0) >= minLen)
       .filter(entry => entry.word.length <= maxLen)
       .sort((a, b) => (matches.get(b.word) || 0) - (matches.get(a.word) || 0));
 
+    // Explicit user words remain available when the user supplied them, but normal
+    // Real Word generation is sourced strictly from the pure dictionary library.
     for (const custom of customPool) {
-      if (!entries.some(entry => entry.word === custom.word)) entries.unshift(custom);
+      if (custom.kind === "dictionary" && !entries.some(entry => entry.word === custom.word)) entries.unshift(custom);
     }
 
     const baseCandidates = dictionaryOne(entries, entries.length, briefTerms);
