@@ -23,7 +23,8 @@ import { track } from "./analytics";
 
 const STORE_KEY = "brandmator.saved.v2";
 const THEME_KEY = "brandmator.theme.v1";
-const PAGE_SIZE = 24;
+const DEFAULT_PAGE_SIZE = 24;
+const RESULT_PAGE_SIZES = [120, 240, 480, 1000] as const;
 
 type SourcePreset = "broad" | "current" | "startup" | "sales" | "custom";
 
@@ -153,6 +154,7 @@ export default function App() {
   const [saved, setSaved] = useState<Blend[]>([]);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [showSaved, setShowSaved] = useState(false);
   const [light, setLight] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -310,9 +312,9 @@ export default function App() {
   );
 
   const sortedShown = useMemo(() => sortResults(shown, resultSort), [shown, resultSort]);
-  const pages = Math.max(1, Math.ceil(sortedShown.length / PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(sortedShown.length / pageSize));
   const current = Math.min(page, pages);
-  const items = sortedShown.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+  const items = sortedShown.slice((current - 1) * pageSize, current * pageSize);
 
   const savedIds = useMemo(() => new Set(saved.map(item => item.name + item.tld)), [saved]);
 
@@ -561,6 +563,12 @@ export default function App() {
                 </div>
               )}
 
+              {recipeId === "dictionary-one" && seedWordsInput.trim() && (
+                <p className="mt-3 rounded-xl border border-cyan-200/50 bg-cyan-500/5 px-3 py-2 text-xs text-[var(--muted)]">
+                  With Words to include, each entered dictionary word can be paired with a pure dictionary partner in either order, such as task + flow or flow + task.
+                </p>
+              )}
+
               {recipeId === "dictionary-one" && (
                 <p className="mt-3 rounded-xl border border-emerald-200/50 bg-emerald-500/5 px-3 py-2 text-xs text-[var(--muted)]">
                   Pure dictionary mode: only dictionary-classified words are used. Sales/domain-brandables and stylized spellings are excluded.
@@ -785,7 +793,7 @@ export default function App() {
                 {showSaved ? "Your shortlist" : "Generated names"}
               </h2>
               <p className="mt-1 text-xs text-[var(--muted)]">
-                {sortedShown.length} names · {sortedShown.length ? (current - 1) * PAGE_SIZE + 1 : 0}–{Math.min(current * PAGE_SIZE, sortedShown.length)}
+                {sortedShown.length} names · {sortedShown.length ? (current - 1) * pageSize + 1 : 0}–{Math.min(current * pageSize, sortedShown.length)}
               </p>
               {(prefix || suffix || brief.trim()) && !showSaved && (
                 <p className="mt-1 text-[10px] text-indigo-500">
@@ -805,6 +813,17 @@ export default function App() {
                 placeholder="Search this batch…"
                 className="hidden w-48 rounded-xl border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-xs outline-none placeholder:text-[var(--muted)] sm:block"
                 aria-label="Search this batch"
+              />
+              <StyledSelect
+                value={String(pageSize)}
+                onChange={value => {
+                  setPageSize(Number(value));
+                  setPage(1);
+                }}
+                ariaLabel="Results per page"
+                options={RESULT_PAGE_SIZES.map(value => ({ value: String(value), label: `View ${value}` }))}
+                compact
+                className="w-32"
               />
               <StyledSelect
                 value={resultSort}
@@ -851,13 +870,46 @@ export default function App() {
 
           {pages > 1 && (
             <nav className="mt-6 flex flex-wrap items-center justify-center gap-2" aria-label="Generated name pages">
-              <button disabled={current === 1} onClick={() => setPage(value => Math.max(1, value - 1))} className="rounded-xl border border-[var(--border)] bg-[var(--chip)] px-3 py-2 text-xs disabled:opacity-35">Previous</button>
+              <button
+                disabled={current === 1}
+                onClick={() => setPage(1)}
+                className="rounded-xl border border-[var(--border)] bg-[var(--chip)] px-3 py-2 text-xs disabled:opacity-35"
+              >
+                First
+              </button>
+              <button
+                disabled={current === 1}
+                onClick={() => setPage(value => Math.max(1, value - 1))}
+                className="rounded-xl border border-[var(--border)] bg-[var(--chip)] px-3 py-2 text-xs disabled:opacity-35"
+              >
+                Previous
+              </button>
               {Array.from({ length: pages }, (_, index) => index + 1)
                 .slice(Math.max(0, current - 3), Math.min(pages, current + 2))
                 .map(number => (
-                  <button key={number} onClick={() => setPage(number)} aria-current={number === current ? "page" : undefined} className={"h-9 min-w-9 rounded-xl px-3 text-xs font-semibold " + (number === current ? "bg-indigo-600 text-white" : "border border-[var(--border)] bg-[var(--chip)]")}>{number}</button>
+                  <button
+                    key={number}
+                    onClick={() => setPage(number)}
+                    aria-current={number === current ? "page" : undefined}
+                    className={"h-9 min-w-9 rounded-xl px-3 text-xs font-semibold " + (number === current ? "bg-indigo-600 text-white" : "border border-[var(--border)] bg-[var(--chip)]")}
+                  >
+                    {number}
+                  </button>
                 ))}
-              <button disabled={current === pages} onClick={() => setPage(value => Math.min(pages, value + 1))} className="rounded-xl border border-[var(--border)] bg-[var(--chip)] px-3 py-2 text-xs disabled:opacity-35">Next</button>
+              <button
+                disabled={current === pages}
+                onClick={() => setPage(value => Math.min(pages, value + 1))}
+                className="rounded-xl border border-[var(--border)] bg-[var(--chip)] px-3 py-2 text-xs disabled:opacity-35"
+              >
+                Next
+              </button>
+              <button
+                disabled={current === pages}
+                onClick={() => setPage(pages)}
+                className="rounded-xl border border-[var(--border)] bg-[var(--chip)] px-3 py-2 text-xs disabled:opacity-35"
+              >
+                Last
+              </button>
             </nav>
           )}
         </section>
