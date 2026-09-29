@@ -9,11 +9,11 @@ export type ResultSort =
   | "cost-asc";
 
 export const RESULT_SORTS: Array<{ value: ResultSort; label: string }> = [
-  { value: "length-asc", label: "Length · Low–High" },
-  { value: "length-desc", label: "Length · High–Low" },
+  { value: "length-asc", label: "Low–High" },
+  { value: "length-desc", label: "High–Low" },
   { value: "score-desc", label: "High score" },
   { value: "score-asc", label: "Low score" },
-  { value: "cost-asc", label: "Cost · Low–High" }
+  { value: "cost-asc", label: "Low–High" }
 ];
 
 export function sortResults(items: Blend[], sort: ResultSort): Blend[] {
