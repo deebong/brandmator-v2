@@ -152,7 +152,7 @@ focus terms + aliases
   <div class="card"><strong>Pure dictionary - Two words</strong><p>Joins two untouched words without portmanteau fusion. The UI can present <code>BlueOcean</code> while the actual domain string remains <code>blueocean</code>.</p></div>
 </div>
 
-<h2 id="data">Data layer</h2>
+<h2 id="word-kinds">Dictionary versus brandable library</h2><p>Every merged word entry is classified as either <code>dictionary</code> or <code>brandable</code>. Pure dictionary mode uses only dictionary-classified entries. Stylized abbreviations, compressed spellings, unusual letter substitutions and known domain-brandable forms are routed to the brandable library so they remain available to inventive models without contaminating literal dictionary results.</p><h2 id="data">Data layer</h2>
 <p>Current word sources are isolated into separate pools. The merged library retains source provenance, categories and weights. Sales vocabulary is a starter signal set derived from reported sales rather than a live sales feed.</p>
 <p>Planned ingestion can replace or append these static pools without changing model code.</p>
 
