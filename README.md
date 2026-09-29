@@ -14,6 +14,15 @@ https://deebong.github.io/brandmator-v2/tech.html
 
 The documentation covers the feature set, naming models, scoring architecture, data layer, brand-brief flow, analytics extension point, domain-availability roadmap and how to add future models.
 
+## Vocabulary classification
+
+The merged word library is split into two runtime classes:
+
+- **Pure Dictionary Library** - dictionary-classified words for literal Real Word generation.
+- **Brandable Library** - stylized, compressed, abbreviated and coined forms retained for inventive naming models.
+
+This keeps domain-sales intelligence useful without allowing sales-style spellings to leak into pure dictionary results.
+
 ## Current architecture
 
 - `src/data/` - word library, source pools, categories and TLD metadata
