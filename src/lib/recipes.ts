@@ -23,7 +23,7 @@ export const RECIPES: Recipe[] = [
   { id: "prefix", label: "Prefix & initials", description: "Build names around a beginning, initial or root.", modelId: "m3", candidateMode: "models" },
   { id: "meaningful", label: "Meaningful names", description: "Keep useful semantic clues and recognizable roots.", modelId: "m4", candidateMode: "models" },
   { id: "experimental", label: "Wild ideas", description: "Allow looser transformations and unusual constructions.", modelId: "m5", candidateMode: "models" },
-  { id: "dictionary-one", label: "Real word", description: "Use an untouched dictionary word.", modelId: "m0", candidateMode: "dictionary-one" },
+  { id: "dictionary-one", label: "Real word", description: "Use an untouched dictionary word; prefixes and suffixes are attached exactly.", modelId: "m0", candidateMode: "dictionary-one" },
   { id: "dictionary-two", label: "Two real words", description: "Join two untouched words; show them in CamelCase.", modelId: "m0", candidateMode: "dictionary-two" }
 ];
 

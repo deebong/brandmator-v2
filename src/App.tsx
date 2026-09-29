@@ -561,6 +561,12 @@ export default function App() {
                 </div>
               )}
 
+              {recipeId === "dictionary-one" && (prefix.trim() || suffix.trim()) && (
+                <p className="mt-3 rounded-xl border border-indigo-200/50 bg-indigo-500/5 px-3 py-2 text-xs text-[var(--muted)]">
+                  Exact real-word mode: the selected prefix/suffix is attached to an untouched dictionary word. No spelling or fusion variants are generated.
+                </p>
+              )}
+
               {(recipeId === "dictionary-one" || recipeId === "dictionary-two") && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="text-[11px] font-medium text-[var(--muted)]">Real-word format:</span>
