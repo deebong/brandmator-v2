@@ -476,59 +476,108 @@ export async function generateAsync(
   }
 
   if (opts.candidateMode === "dictionary-one") {
-    // Real word mode is intentionally literal:
-    // take an untouched dictionary word and optionally attach the user's prefix/suffix.
-    // No spelling alterations, fusion, clipping or creative variants are allowed here.
-    const dictionaryPool = PURE_DICTIONARY_LIBRARY.filter(entry => {
-      if (!entry.sources.length) return true;
-      return entry.sources.some(source => opts.sources.includes(source));
-    });
+    // Real Word mode uses only dictionary-classified words. If the user supplied
+    // explicit words, they become anchors that can be paired with pure dictionary
+    // partners in either order. No spelling/fusion variants are introduced.
+    const dictionaryPool = PURE_DICTIONARY_LIBRARY
+      .filter(entry => {
+        if (!opts.sources.length) return true;
+        return entry.sources.length === 0 || entry.sources.some(source => opts.sources.includes(source));
+      })
+      .filter(entry => !excluded.has(entry.word));
 
-    const entries = [...dictionaryPool.length ? dictionaryPool : PURE_DICTIONARY_LIBRARY]
-      .filter(entry => entry.word.length + prefixes.reduce((n, p) => n + p.length, 0) + suffixes.reduce((n, s) => n + s.length, 0) >= minLen)
-      .filter(entry => entry.word.length <= maxLen)
-      .sort((a, b) => (matches.get(b.word) || 0) - (matches.get(a.word) || 0));
-
-    // Explicit user words remain available when the user supplied them, but normal
-    // Real Word generation is sourced strictly from the pure dictionary library.
-    for (const custom of customPool) {
-      if (custom.kind === "dictionary" && !entries.some(entry => entry.word === custom.word)) entries.unshift(custom);
-    }
-
-    const baseCandidates = dictionaryOne(entries, entries.length, briefTerms);
+    const baseEntries = dictionaryPool.length ? dictionaryPool : PURE_DICTIONARY_LIBRARY;
     const seen = new Set<string>();
     const result: Blend[] = [];
 
-    for (const candidate of baseCandidates) {
-      const names = applyAffixVariants(candidate.a.word, prefixes, suffixes);
+    const pushLiteral = (name: string, aEntry: WordEntry, bEntry: WordEntry, method: string) => {
+      const finalName = normalize(name);
+      if (!finalName || excluded.has(finalName)) return;
+      if (!/^[a-z]+$/.test(finalName)) return;
+      if (finalName.length < minLen || finalName.length > maxLen) return;
+      if (!matchesConstraints(finalName, prefixes, suffixes)) return;
+      if (seen.has(finalName)) return;
 
-      for (const finalName of names) {
-        if (excluded.has(finalName)) continue;
-        if (!/^[a-z]+$/.test(finalName)) continue;
-        if (finalName.length < minLen || finalName.length > maxLen) continue;
-        if (!matchesConstraints(finalName, prefixes, suffixes)) continue;
-        if (seen.has(finalName)) continue;
+      const partnerEvidence = dictionaryOne([bEntry], 1, briefTerms)[0]?.evidence || {
+        modelScore: 72,
+        dimensions: {},
+        rationale: ["Dictionary source"],
+        sourceWords: [bEntry.word, bEntry.word],
+        categories: bEntry.categories
+      };
 
-        seen.add(finalName);
-        result.push(
-          dictionaryBlend(
-            {
-              ...candidate,
-              name: finalName,
-              method: hasExplicitAffix(prefixes, suffixes)
-                ? "user-affix(dictionary-word)"
-                : "dictionary-word"
-            },
-            pick(tldPool) || ".com",
-            "dictionary-one",
-            opts.style
-          )
-        );
+      seen.add(finalName);
+      result.push(
+        dictionaryBlend(
+          {
+            name: finalName,
+            method,
+            score: 72,
+            evidence: partnerEvidence,
+            a: aEntry,
+            b: bEntry
+          },
+          pick(tldPool) || ".com",
+          "dictionary-one",
+          opts.style
+        )
+      );
+    };
+
+    const anchors = customPool.filter(entry => entry.kind === "dictionary");
+
+    if (anchors.length) {
+      // Explicit user words are always represented where the length constraints allow.
+      for (const anchor of anchors) {
+        const rootNames = applyAffixVariants(anchor.word, prefixes, suffixes);
+        for (const rootName of rootNames) {
+          pushLiteral(rootName, anchor, anchor, hasExplicitAffix(prefixes, suffixes)
+            ? "user-affix(dictionary-word)"
+            : "dictionary-word");
+        }
+      }
+
+      // Pair each anchor with pure dictionary partners in both directions.
+      for (const anchor of anchors) {
+        for (const partner of baseEntries) {
+          if (partner.word === anchor.word) continue;
+
+          for (const pair of [
+            [anchor.word, partner.word],
+            [partner.word, anchor.word]
+          ] as const) {
+            const names = applyAffixVariants(pair[0] + pair[1], prefixes, suffixes);
+            for (const name of names) {
+              pushLiteral(name, anchor, partner, hasExplicitAffix(prefixes, suffixes)
+                ? "user-affix(dictionary-anchor+word)"
+                : "dictionary-anchor+word");
+              if (result.length >= count) break;
+            }
+            if (result.length >= count) break;
+          }
+
+          if (result.length >= count) break;
+        }
 
         if (result.length >= count) break;
       }
-
-      if (result.length >= count) break;
+    } else {
+      // No explicit Words to include: show literal dictionary words only.
+      const ranked = dictionaryOne(baseEntries, baseEntries.length, briefTerms);
+      for (const candidate of ranked) {
+        for (const name of applyAffixVariants(candidate.a.word, prefixes, suffixes)) {
+          pushLiteral(
+            name,
+            candidate.a,
+            candidate.a,
+            hasExplicitAffix(prefixes, suffixes)
+              ? "user-affix(dictionary-word)"
+              : "dictionary-word"
+          );
+          if (result.length >= count) break;
+        }
+        if (result.length >= count) break;
+      }
     }
 
     onProgress?.({ phase: "finishing", percent: 100, found: result.length });
