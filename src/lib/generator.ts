@@ -475,7 +475,11 @@ export async function generateAsync(
   }
 
   if (opts.candidateMode === "dictionary-one") {
+    // Real word mode is intentionally literal:
+    // take an untouched dictionary word and optionally attach the user's prefix/suffix.
+    // No spelling alterations, fusion, clipping or creative variants are allowed here.
     const entries = [...selectionPool]
+      .filter(entry => entry.word.length + prefixes.reduce((n, p) => n + p.length, 0) + suffixes.reduce((n, s) => n + s.length, 0) >= minLen)
       .filter(entry => entry.word.length <= maxLen)
       .sort((a, b) => (matches.get(b.word) || 0) - (matches.get(a.word) || 0));
 
@@ -483,79 +487,44 @@ export async function generateAsync(
       if (!entries.some(entry => entry.word === custom.word)) entries.unshift(custom);
     }
 
-    const baseScores = new Map(
-      dictionaryOne(entries, entries.length, briefTerms).map(candidate => [candidate.a.word, candidate])
-    );
-
-    const variants: DictionaryWorkCandidate[] = [];
+    const baseCandidates = dictionaryOne(entries, entries.length, briefTerms);
     const seen = new Set<string>();
+    const result: Blend[] = [];
 
-    for (const entry of entries) {
-      const baseEvidence: GeneratedEvidence = baseScores.get(entry.word)?.evidence || {
-        modelScore: 72,
-        dimensions: {},
-        rationale: ["Dictionary source"],
-        sourceWords: [entry.word, entry.word] as [string, string],
-        categories: entry.categories
-      };
+    for (const candidate of baseCandidates) {
+      const names = applyAffixVariants(candidate.a.word, prefixes, suffixes);
 
-      const candidates: DictionaryWorkCandidate[] = [
-        {
-          name: entry.word,
-          method: "dictionary-word",
-          score: baseScores.get(entry.word)?.score || 72,
-          evidence: baseEvidence,
-          a: entry,
-          b: entry
-        },
-        ...creativeWordVariants(entry).map(variant => ({
-          name: variant.name,
-          method: variant.method,
-          score: baseScores.get(entry.word)?.score || 72,
-          evidence: baseEvidence,
-          a: entry,
-          b: entry
-        }))
-      ];
+      for (const finalName of names) {
+        if (excluded.has(finalName)) continue;
+        if (!/^[a-z]+$/.test(finalName)) continue;
+        if (finalName.length < minLen || finalName.length > maxLen) continue;
+        if (!matchesConstraints(finalName, prefixes, suffixes)) continue;
+        if (seen.has(finalName)) continue;
 
-      for (const candidate of candidates) {
-        const finalNames = applyAffixVariants(candidate.name, prefixes, suffixes);
-        for (const finalName of finalNames) {
-          if (
-            finalName.length < minLen ||
-            finalName.length > maxLen ||
-            !matchesConstraints(finalName, prefixes, suffixes) ||
-            seen.has(finalName)
-          ) continue;
+        seen.add(finalName);
+        result.push(
+          dictionaryBlend(
+            {
+              ...candidate,
+              name: finalName,
+              method: hasExplicitAffix(prefixes, suffixes)
+                ? "user-affix(dictionary-word)"
+                : "dictionary-word"
+            },
+            pick(tldPool) || ".com",
+            "dictionary-one",
+            opts.style
+          )
+        );
 
-          seen.add(finalName);
-          variants.push({
-            ...candidate,
-            name: finalName,
-            method: hasExplicitAffix(prefixes, suffixes)
-              ? "user-affix(" + candidate.method + ")"
-              : candidate.method
-          });
-        }
+        if (result.length >= count) break;
       }
+
+      if (result.length >= count) break;
     }
 
-    const result = variants
-      .filter(candidate => !excluded.has(candidate.name))
-      .filter(candidate => matchesConstraints(candidate.name, prefixes, suffixes))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.min(count * 3, variants.length))
-      .map(candidate => dictionaryBlend(
-        candidate,
-        pick(tldPool) || ".com",
-        "dictionary-one",
-        opts.style
-      ));
-
     onProgress?.({ phase: "finishing", percent: 100, found: result.length });
-    return result
-      .filter(candidate => matchesConstraints(candidate.name, prefixes, suffixes))
-      .slice(0, count);
+    return result;
   }
 
   if (opts.candidateMode === "dictionary-two") {
