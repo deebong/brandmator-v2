@@ -52,13 +52,14 @@ export function classifyWord(word: string): WordKind {
   if (FORCE_BRANDABLE.has(value)) return "brandable";
   if (!value) return "brandable";
   if (PURE_SHORT_WORDS.has(value)) return "dictionary";
+  if (["buzz","fizz","fuzz","jazz","quiz"].includes(value)) return "dictionary";
 
   // Stylized/experimental spellings commonly seen in domain sales.
   if (/([a-z])\1{2,}/.test(value)) return "brandable";
   if (!/[aeiouy]/.test(value)) return "brandable";
   if (hasUnusualEnding(value)) return "brandable";
   if (/(?:^|[^aeiou])(?:[qxz])(?:[^aeiou]|$)/.test(value) && value.length <= 6) return "brandable";
-  if (/(?:zz|xx|qq)$/.test(value) && !["buzz","fizz","jazz","fuzz","quiz"].includes(value)) return "brandable";
+  if (/(?:zz|xx|qq)$/.test(value)) return "brandable";
   if (/(?:tz|zr|zv|qj|jq|xq|jv)$/.test(value)) return "brandable";
   if (/[0-9]/.test(word) || /[-_]/.test(word)) return "brandable";
 
