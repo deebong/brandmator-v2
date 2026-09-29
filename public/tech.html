@@ -61,7 +61,7 @@ footer{margin:50px 0;padding:22px 0;border-top:1px solid var(--line)}
 <h3>Prefix and suffix behavior</h3>
 <p><code>Starts with</code> and <code>Ends with</code> are user-directed affixes plus hard output constraints. When a user enters <code>f</code>, the generator can construct <code>f...</code> candidates before enforcing the constraint, so the user does not need to search the results again. When a user enters <code>ly</code>, the generator can construct <code>...ly</code> candidates. If a recipe cannot produce enough candidates under the requested shape and length, fewer results may be returned.</p>
 <h3>Real-word modes</h3>
-<p>Pure dictionary generation is exposed as a simple recipe. One-word mode returns untouched dictionary terms. Two-word mode joins untouched words without fusion and presents the brand in CamelCase while keeping the actual domain lowercase.</p><h2 id="features">Feature inventory</h2>
+<p>Pure dictionary generation is exposed as a simple recipe. One-word mode returns untouched dictionary terms. When a start/end constraint is supplied, the constraint is attached to the untouched word exactly; no spelling variants are introduced. Two-word mode joins untouched words without fusion and presents the brand in CamelCase while keeping the actual domain lowercase.</p><h2 id="features">Feature inventory</h2>
 <div class="grid cards">
   <div class="card"><strong>Model 0 - Blend All</strong><p>Portfolio/orchestrator mode combining the strongest results from the registered naming models.</p></div>
   <div class="card"><strong>Models 1-5</strong><p>Fusion, brand spelling, prefix/initial, semantic wordform and experimental strategies with independent scoring.</p></div>
