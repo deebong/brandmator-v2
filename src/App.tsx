@@ -822,7 +822,7 @@ export default function App() {
                 }}
                 ariaLabel="Results per page"
                 options={RESULT_PAGE_SIZES.map(value => ({ value: String(value), label: String(value) }))}
-                triggerPrefix="Show"
+                triggerLabel="Show"
                 minimal
                 compact
                 className="w-24"
@@ -836,7 +836,7 @@ export default function App() {
                 }}
                 ariaLabel="Sort generated names"
                 options={RESULT_SORTS.map(option => ({ value: option.value, label: option.label }))}
-                triggerPrefix="Sort by"
+                triggerLabel="Sort by"
                 minimal
                 compact
                 className="w-36"
