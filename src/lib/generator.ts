@@ -150,7 +150,8 @@ function customEntry(word: string, selected: WordEntry[]): WordEntry {
       word: normalized,
       categories: ["abstract"],
       sources: [],
-      weight: 1.1
+      weight: 1.1,
+      kind: "brandable"
     }
   );
 }
